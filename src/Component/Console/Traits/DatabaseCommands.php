@@ -8,7 +8,7 @@ use Exception;
 use PDO;
 use Strux\Component\Config\Config;
 use Strux\Component\Database\Migration\Migration;
-use Strux\Component\Database\Migration\Schema;
+
 use Strux\Component\Database\MigrationGenerator;
 use Strux\Component\Database\Seeder\SeederRunner;
 
@@ -75,7 +75,7 @@ trait DatabaseCommands
     private function upgradeDatabase(): void
     {
         $pdo = $this->getPdo();
-        Schema::setConnection($pdo);
+
         $rootPath = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 4);
         $table = $this->getMigrationTable();
 
@@ -113,7 +113,7 @@ trait DatabaseCommands
     private function downgradeDatabase(): void
     {
         $pdo = $this->getPdo();
-        Schema::setConnection($pdo);
+
         $rootPath = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 4);
         $table = $this->getMigrationTable();
 
@@ -227,7 +227,7 @@ trait DatabaseCommands
     private function dropAllTables(): void
     {
         $pdo = $this->getPdo();
-        Schema::setConnection($pdo);
+
 
         try {
             $pdo->exec('SET FOREIGN_KEY_CHECKS=0;');
