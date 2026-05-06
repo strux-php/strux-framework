@@ -129,16 +129,16 @@ abstract class Form implements FormInterface
             foreach ($this->fields as $name => $field) {
                 if (property_exists($data, $name)) {
                     // Access public property directly
-                    $inputData[$name] = $data->$name;
+                    $inputData[$name] = (string) $data->$name;
                 } elseif (method_exists($data, 'get' . ucfirst($name))) {
                     // Try getter method (getName())
                     $method = 'get' . ucfirst($name);
-                    $inputData[$name] = $data->$method();
+                    $inputData[$name] = (string) $data->$method();
                 } elseif (method_exists($data, 'toArray')) {
                     // Fallback to toArray() if available
                     $arrayData = $data->toArray();
                     if (isset($arrayData[$name])) {
-                        $inputData[$name] = $arrayData[$name];
+                        $inputData[$name] = (string) $arrayData[$name];
                     }
                 }
             }
@@ -162,9 +162,11 @@ abstract class Form implements FormInterface
                         $type = $rp->getType();
 
                         // Check if type is 'string' and does NOT allow nulls
-                        if ($type instanceof \ReflectionNamedType
+                        if (
+                            $type instanceof \ReflectionNamedType
                             && $type->getName() === 'string'
-                            && !$type->allowsNull()) {
+                            && !$type->allowsNull()
+                        ) {
                             $value = '';
                         }
                     }
@@ -181,7 +183,8 @@ abstract class Form implements FormInterface
     public function isValid(): bool
     {
         // Allow validation only if bound
-        if (!$this->isBound) return false;
+        if (!$this->isBound)
+            return false;
 
         $data = [];
         $rules = [];
@@ -201,7 +204,7 @@ abstract class Form implements FormInterface
         $errors = $this->validator->getErrors();
         foreach ($errors as $field => $messages) {
             if (isset($this->fields[$field])) {
-                $this->fields[$field]->setErrors((array)$messages);
+                $this->fields[$field]->setErrors((array) $messages);
             }
         }
 

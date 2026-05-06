@@ -107,23 +107,32 @@ class EventRegistry extends ServiceRegistry
                 continue;
             }
 
-            $attributes = $reflection->getAttributes(Listener::class);
+            $classAttributes = $reflection->getAttributes(Listener::class);
+            $methodAttributes = [];
+            
+            if ($reflection->hasMethod('handle')) {
+                $methodAttributes = $reflection->getMethod('handle')->getAttributes(Listener::class);
+            }
+            
+            $attributes = array_merge($classAttributes, $methodAttributes);
 
             if (!empty($attributes)) {
-                /** @var Listener $listenerAttribute */
-                $listenerAttribute = $attributes[0]->newInstance();
+                foreach ($attributes as $attribute) {
+                    /** @var Listener $listenerAttribute */
+                    $listenerAttribute = $attribute->newInstance();
 
-                $eventClass = $listenerAttribute->event;
-                $methodName = $listenerAttribute->method ?? 'handle';
+                    $eventClass = $listenerAttribute->event;
+                    $methodName = $listenerAttribute->method ?? 'handle';
 
-                if ($eventClass === null) {
-                    if ($reflection->hasMethod($methodName)) {
-                        $eventClass = $this->getEventClassFromMethod($reflection->getMethod($methodName));
+                    if ($eventClass === null) {
+                        if ($reflection->hasMethod($methodName)) {
+                            $eventClass = $this->getEventClassFromMethod($reflection->getMethod($methodName));
+                        }
                     }
-                }
 
-                if ($eventClass) {
-                    $this->registerListener($container, $dispatcher, $queue, $logger, $eventClass, $className, $methodName);
+                    if ($eventClass) {
+                        $this->registerListener($container, $dispatcher, $queue, $logger, $eventClass, $className, $methodName);
+                    }
                 }
                 continue;
             }

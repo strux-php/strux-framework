@@ -12,16 +12,16 @@ use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
-use Strux\Component\Attributes\ApiController;
-use Strux\Component\Attributes\ApiRoute;
-use Strux\Component\Attributes\Cache;
-use Strux\Component\Attributes\Consumes;
-use Strux\Component\Attributes\Middleware as MiddlewareAttribute;
-use Strux\Component\Attributes\Prefix as PrefixAttribute;
-use Strux\Component\Attributes\Produces;
-use Strux\Component\Attributes\ResponseHeader;
-use Strux\Component\Attributes\ResponseStatus;
-use Strux\Component\Attributes\Route as WebRoute;
+use Strux\Component\Routing\Attributes\ApiController;
+use Strux\Component\Routing\Attributes\ApiRoute;
+use Strux\Component\Cache\Attributes\Cache;
+use Strux\Component\Http\Attributes\Consumes;
+use Strux\Component\Middleware\Attributes\Middleware as MiddlewareAttribute;
+use Strux\Component\Routing\Attributes\Prefix as PrefixAttribute;
+use Strux\Component\Http\Attributes\Produces;
+use Strux\Component\Http\Attributes\ResponseHeader;
+use Strux\Component\Http\Attributes\ResponseStatus;
+use Strux\Component\Routing\Attributes\Route as WebRoute;
 
 readonly class RouterLoader
 {
@@ -55,7 +55,6 @@ readonly class RouterLoader
         $context = $isApi ? 'API Controller' : 'Controller';
         foreach ($controllers as $controllerClass) {
             if (!class_exists($controllerClass)) {
-                dump($controllerClass);
                 $this->logger->warning("RouterLoader: $context class '$controllerClass' not found. Skipping.");
                 continue;
             }

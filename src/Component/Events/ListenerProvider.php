@@ -41,7 +41,7 @@ class ListenerProvider implements ListenerProviderInterface
 
         // Optional: Support inheritance (listeners for parent classes/interfaces)
         foreach ($this->listeners as $type => $listeners) {
-            if ($event instanceof $type) {
+            if ($type !== $eventClass && $event instanceof $type) {
                 foreach ($listeners as $listener) {
                     yield $listener;
                 }

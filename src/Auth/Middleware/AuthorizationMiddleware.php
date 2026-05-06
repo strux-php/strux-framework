@@ -18,7 +18,7 @@ use ReflectionException;
 use ReflectionMethod;
 use Strux\Auth\Auth;
 use Strux\Auth\AuthManager;
-use Strux\Component\Attributes\Authorize;
+use Strux\Auth\Attributes\Authorize;
 use Strux\Component\Config\Config;
 use Strux\Component\Exceptions\AuthorizationException;
 use Strux\Component\Routing\Router;

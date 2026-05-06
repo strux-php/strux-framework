@@ -46,10 +46,10 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Kernel\Component\Attributes\Route;
-use Kernel\Component\Attributes\Prefix;
-use Kernel\Component\Http\Response;
-use Kernel\Component\Http\Controller\Web\Controller;
+use Strux\Component\Routing\Attributes\Route;
+use Strux\Component\Routing\Attributes\Prefix;
+use Strux\Component\Http\Response;
+use Strux\Component\Http\Controller\Web\Controller;
 
 #[Prefix('/{$route}')]
 class {$className} extends Controller
@@ -72,13 +72,13 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Kernel\Component\Attributes\ApiController;
-use Kernel\Component\Attributes\ApiRoute;
-use Kernel\Component\Attributes\Consumes;
-use Kernel\Component\Attributes\Prefix;
-use Kernel\Component\Attributes\Produces;
-use Kernel\Component\Http\ApiResponse;
-use Kernel\Component\Http\Controller\Api\Controller;
+use Strux\Component\Routing\Attributes\ApiController;
+use Strux\Component\Routing\Attributes\ApiRoute;
+use Strux\Component\Http\Attributes\Consumes;
+use Strux\Component\Routing\Attributes\Prefix;
+use Strux\Component\Http\Attributes\Produces;
+use Strux\Component\Http\ApiResponse;
+use Strux\Component\Http\Controller\Api\Controller;
 
 #[ApiController]
 #[Prefix('/api/{$route}')]
@@ -126,11 +126,11 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Kernel\Component\Database\Attributes\Table;
-use Kernel\Component\Database\Attributes\Column;
-use Kernel\Component\Database\Attributes\Id;
-use Kernel\Component\Database\Types\Field;
-use Kernel\Component\Model\Model;
+use Strux\Component\Database\Attributes\Table;
+use Strux\Component\Database\Attributes\Column;
+use Strux\Component\Database\Attributes\Id;
+use Strux\Component\Database\Types\Field;
+use Strux\Component\Model\Model;
 
 #[Table('{$tableName}')]
 class {$className} extends Model
@@ -176,7 +176,7 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Kernel\Component\Queue\Job;
+use Strux\Component\Queue\Job;
 
 class {$className} extends Job
 {
@@ -363,7 +363,7 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Kernel\Bootstrapping\Registry\ServiceRegistry;
+use Strux\Bootstrapping\Registry\ServiceRegistry;
 use Psr\Container\ContainerInterface;
 
 class {$className} extends ServiceRegistry
@@ -447,15 +447,15 @@ declare(strict_types=1);
 namespace {$namespace};
 
 use DateTime;
-use Kernel\Auth\Traits\WillAuthenticate;
-use Kernel\Component\Database\Attributes\Column;
-use Kernel\Component\Database\Attributes\Id;
-use Kernel\Component\Database\Attributes\Table;
-use Kernel\Component\Database\Attributes\Unique;
-use Kernel\Component\Database\Types\Field;
-use Kernel\Component\Model\Attributes\BelongsToMany;
-use Kernel\Component\Model\Model;
-use Kernel\Support\Collection;
+use Strux\Auth\Traits\WillAuthenticate;
+use Strux\Component\Database\Attributes\Column;
+use Strux\Component\Database\Attributes\Id;
+use Strux\Component\Database\Attributes\Table;
+use Strux\Component\Database\Attributes\Unique;
+use Strux\Component\Database\Types\Field;
+use Strux\Component\Model\Attributes\BelongsToMany;
+use Strux\Component\Model\Model;
+use Strux\Support\Collection;
 
 #[Table('users')]
 class User extends Model
@@ -529,13 +529,13 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Kernel\Component\Database\Attributes\Column;
-use Kernel\Component\Database\Attributes\Id;
-use Kernel\Component\Database\Attributes\Table;
-use Kernel\Component\Database\Attributes\Unique;
-use Kernel\Component\Model\Attributes\BelongsToMany;
-use Kernel\Component\Model\Model;
-use Kernel\Support\Collection;
+use Strux\Component\Database\Attributes\Column;
+use Strux\Component\Database\Attributes\Id;
+use Strux\Component\Database\Attributes\Table;
+use Strux\Component\Database\Attributes\Unique;
+use Strux\Component\Model\Attributes\BelongsToMany;
+use Strux\Component\Model\Model;
+use Strux\Support\Collection;
 
 #[Table('roles')]
 class Roles extends Model
@@ -571,13 +571,13 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Kernel\Component\Database\Attributes\Column;
-use Kernel\Component\Database\Attributes\Id;
-use Kernel\Component\Database\Attributes\Table;
-use Kernel\Component\Database\Attributes\Unique;
-use Kernel\Component\Model\Attributes\BelongsToMany;
-use Kernel\Component\Model\Model;
-use Kernel\Support\Collection;
+use Strux\Component\Database\Attributes\Column;
+use Strux\Component\Database\Attributes\Id;
+use Strux\Component\Database\Attributes\Table;
+use Strux\Component\Database\Attributes\Unique;
+use Strux\Component\Model\Attributes\BelongsToMany;
+use Strux\Component\Model\Model;
+use Strux\Support\Collection;
 
 #[Table('permissions')]
 class Permissions extends Model

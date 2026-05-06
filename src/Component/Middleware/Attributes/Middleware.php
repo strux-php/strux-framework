@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Strux\Component\Attributes;
+namespace Strux\Component\Middleware\Attributes;
 
 use Attribute;
 
