@@ -77,7 +77,7 @@ class Kernel
             throw new \RuntimeException("Vendor directory not found. Please run 'composer install'.");
         }
 
-        $container->singleton(Config::class, fn() => new Config($configValues, $rootPath));
+
 
         /**
          * -------------------------------------------------------------------------
@@ -94,6 +94,8 @@ class Kernel
 
         $directoryResolver = new DirectoryResolver($rootPath, $mergedDirectories);
         $container->singleton(DirectoryInterface::class, $directoryResolver);
+
+        $container->singleton(Config::class, fn() => new Config($configValues, $directoryResolver->get('config')));
 
         /**
          * -------------------------------------------------------------------------
@@ -128,7 +130,7 @@ class Kernel
      */
     private static function loadDirectoriesConfig(string $rootPath): array
     {
-        $configFile = $rootPath . '/src/Config/Directories.php';
+        $configFile = \Strux\Component\Config\DirectoryResolver::getDefaults($rootPath)['config'] . '/Directories.php';
 
         if (!file_exists($configFile)) {
             return [];

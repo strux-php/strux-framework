@@ -33,17 +33,17 @@ class AuthorizationMiddleware implements MiddlewareInterface
     private FlashInterface $flash;
     private ?LoggerInterface $logger;
     private string $loginRouteName;
+    private string $nextParameter;
 
     public function __construct(
-        AuthManager              $authManager,
+        AuthManager $authManager,
         ResponseFactoryInterface $responseFactory,
-        Router                   $router,
-        FlashInterface           $flash,
-        ?string                  $loginRouteName = null,
-        ?string                  $nextParameter = null,
-        ?LoggerInterface         $logger = null
-    )
-    {
+        Router $router,
+        FlashInterface $flash,
+        ?string $loginRouteName = null,
+        ?string $nextParameter = null,
+        ?LoggerInterface $logger = null
+    ) {
         $this->authManager = $authManager;
         $this->responseFactory = $responseFactory;
         $this->router = $router;
@@ -59,9 +59,9 @@ class AuthorizationMiddleware implements MiddlewareInterface
      * @throws AuthorizationException
      */
     public function process(
-        ServerRequestInterface  $request,
-        RequestHandlerInterface $handler): ResponseInterface
-    {
+        ServerRequestInterface $request,
+        RequestHandlerInterface $handler
+    ): ResponseInterface {
         if ($this->authManager->sentinel('web')->check()) {
             $userId = $this->authManager->sentinel('web')->id();
             $this->logger?->info("[AuthManagerMiddleware] User with ID {$userId} is authenticated. Proceeding.");
@@ -101,11 +101,9 @@ class AuthorizationMiddleware implements MiddlewareInterface
         /** @var Config $config */
         $config = ContainerBridge::resolve(Config::class);
 
-        $this->loginRouteName = $this->loginRouteName
-            ?? $config->get('auth.defaults.redirect_to', 'login');
+        $this->loginRouteName ??= $config->get('auth.defaults.login_route', 'login');
 
-        $this->nextParameter = $this->nextParameter
-            ?? $config->get('auth.defaults.next_parameter', 'next');
+        $this->nextParameter ??= $config->get('auth.defaults.next_parameter', 'next');
 
         try {
             $currentPath = (!empty($request->getUri()->getPath()) && $request->getUri()->getPath() !== '/')
@@ -114,9 +112,9 @@ class AuthorizationMiddleware implements MiddlewareInterface
 
             if (str_starts_with($this->loginRouteName, '/')) {
                 if (!empty($currentPath)) {
-                    $loginUrl = $this->loginRouteName . '?' . http_build_query([
-                            $this->nextParameter => $currentPath
-                        ]);
+                    $loginUrl = "{$this->loginRouteName}?" . http_build_query([
+                        $this->nextParameter => $currentPath
+                    ]);
                 } else {
                     $loginUrl = $this->loginRouteName;
                 }

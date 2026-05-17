@@ -12,6 +12,7 @@ use Psr\Log\LoggerInterface;
 use ReflectionClass;
 use RuntimeException;
 use Strux\Auth\AuthManager;
+use Strux\Component\Form\FormFactory;
 use Strux\Component\Http\Controller\BaseController;
 use Strux\Component\Http\Request;
 use Strux\Component\Session\SessionInterface;
@@ -24,18 +25,18 @@ abstract class Controller extends BaseController
     protected ?string $defaultModelName = null;
 
     public function __construct(
-        ?ContainerInterface       $container = null,
-        ?Request                  $request = null,
+        ?ContainerInterface $container = null,
+        ?Request $request = null,
         ?ResponseFactoryInterface $responseFactory = null,
-        ?PDO                      $db = null,
-        ?SessionInterface         $session = null,
-        ?LoggerInterface          $logger = null,
-        ?ViewInterface            $view = null,
+        ?PDO $db = null,
+        ?SessionInterface $session = null,
+        ?LoggerInterface $logger = null,
+        ?ViewInterface $view = null,
         ?EventDispatcherInterface $event = null,
-        ?FlashInterface           $flash = null,
-        ?AuthManager              $authManager = null
-    )
-    {
+        ?FlashInterface $flash = null,
+        ?AuthManager $authManager = null,
+        ?FormFactory $forms = null,
+    ) {
         parent::__construct(
             $container,
             $request,
@@ -46,7 +47,8 @@ abstract class Controller extends BaseController
             $view,
             $event,
             $flash,
-            $authManager
+            $authManager,
+            $forms
         );
         $this->determineDefaultModelName();
     }
@@ -72,6 +74,10 @@ abstract class Controller extends BaseController
      */
     public function __get(string $name)
     {
+        /* if ($name === 'forms') {
+            return $this->forms;
+        } */
+
         // Handle accessing the default model via `$this->model`
         if ($name === 'model') {
             if ($this->defaultModelName === null) {

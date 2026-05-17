@@ -13,7 +13,6 @@ use Psr\Log\LoggerInterface;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
-use Strux\Component\Config\Config;
 use Strux\Component\Config\DirectoryInterface;
 use Strux\Component\Events\Attributes\Listener;
 use Strux\Component\Events\CallQueuedListener;

@@ -8,7 +8,7 @@ class MigrationWriter
 
     public function __construct(string $basePath)
     {
-        $this->migrationPath = $basePath . '/database/migrations';
+        $this->migrationPath = \Strux\Component\Config\DirectoryResolver::getDefaults($basePath)['migrations'];
 
         if (!is_dir($this->migrationPath)) {
             mkdir($this->migrationPath, 0755, true);

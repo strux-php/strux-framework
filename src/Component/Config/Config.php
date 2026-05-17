@@ -12,14 +12,14 @@ class Config implements ArrayAccess
      * @var array<string,mixed>
      */
     private array $items;
-    private ?string $rootPath;
+    private ?string $configDir;
 
     /**
      * @param array<string,mixed> $items Initial etc (e.g., from $_SERVER, $_ENV or a parsed etc file)
      */
-    public function __construct(array $items = [], ?string $rootPath = null)
+    public function __construct(array $items = [], ?string $configDir = null)
     {
-        $this->rootPath = $rootPath;
+        $this->configDir = $configDir;
         $this->items = $items;
 
         // Auto-load class-based configurations
@@ -35,7 +35,7 @@ class Config implements ArrayAccess
      */
     protected function loadConfigurationClasses(): void
     {
-        $configDir = $this->rootPath . '/src/Config' ?? getcwd() . '/src/Config';
+        $configDir = $this->configDir ?? \Strux\Component\Config\DirectoryResolver::getDefaults(getcwd())['config'];
 
         if (!is_dir($configDir)) {
             return;
@@ -222,3 +222,4 @@ class Config implements ArrayAccess
         $this->remove((string) $offset);
     }
 }
+

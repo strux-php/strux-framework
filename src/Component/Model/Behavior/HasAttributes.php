@@ -15,11 +15,13 @@ use ReflectionProperty;
 use RuntimeException;
 use Strux\Component\Database\Attributes\Column;
 use Strux\Component\Database\Attributes\SoftDelete;
+use Strux\Component\Model\Attributes\Hidden;
 use Strux\Component\Model\Attributes\RelationAttribute;
 
 trait HasAttributes
 {
     private array $_original = [];
+    private array $_hiddenOverrides = [];
 
     /**
      * @throws ReflectionException
@@ -95,6 +97,7 @@ trait HasAttributes
             'bool' => (bool)$value,
             'float' => (float)$value,
             'string' => (string)$value,
+            'array' => is_string($value) ? json_decode($value, true) : $value,
             'DateTime', '\\DateTime' => is_string($value) ? new DateTime($value) : $value,
             default => $value
         };
@@ -114,6 +117,44 @@ trait HasAttributes
         }
 
         return null;
+    }
+
+    public function hide(array $fields, ?callable $condition = null): static
+    {
+        if ($condition !== null && !$condition()) {
+            return $this;
+        }
+        foreach ($fields as $field) {
+            $this->_hiddenOverrides[$field] = true;
+        }
+        return $this;
+    }
+
+    public function unhide(array $fields, ?callable $condition = null): static
+    {
+        if ($condition !== null && !$condition()) {
+            return $this;
+        }
+        foreach ($fields as $field) {
+            $this->_hiddenOverrides[$field] = false;
+        }
+        return $this;
+    }
+
+    private function _isHidden(string $property): bool
+    {
+        if (array_key_exists($property, $this->_hiddenOverrides)) {
+            return $this->_hiddenOverrides[$property];
+        }
+        $reflection = new ReflectionClass($this);
+        if (!$reflection->hasProperty($property)) {
+            return false;
+        }
+        $prop = $reflection->getProperty($property);
+        if ($prop->isProtected() || $prop->isPrivate()) {
+            return false;
+        }
+        return !empty($prop->getAttributes(Hidden::class));
     }
 
     private function _getPublicPropertiesForDb(): array
@@ -155,7 +196,13 @@ trait HasAttributes
             $collection = $this->get();
             return array_map(fn($item) => $item->toArray(), $collection->all());
         }
-        return $this->_getPublicPropertiesForDb();
+        $data = $this->_getPublicPropertiesForDb();
+        foreach (array_keys($data) as $key) {
+            if ($this->_isHidden($key)) {
+                unset($data[$key]);
+            }
+        }
+        return $data;
     }
 
     /**

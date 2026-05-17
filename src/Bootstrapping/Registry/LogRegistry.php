@@ -43,12 +43,9 @@ class LogRegistry extends ServiceRegistry
 
     public function init(Application $app): void
     {
-        // Use DirectoryResolver if available, fallback to hardcoded path
-        if ($app->getContainer()->has(DirectoryInterface::class)) {
-            $logDir = $app->getContainer()->get(DirectoryInterface::class)->get('logs');
-        } else {
-            $logDir = $app->getRootPath() . '/var/logs';
-        }
+        $logDir = $app->getContainer()->has(DirectoryInterface::class)
+            ? $app->getContainer()->get(DirectoryInterface::class)->get('logs')
+            : \Strux\Component\Config\DirectoryResolver::getDefaults($app->getRootPath())['logs'];
 
         Config::set('app.log_dir', $logDir);
     }

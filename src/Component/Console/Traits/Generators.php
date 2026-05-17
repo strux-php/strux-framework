@@ -6,6 +6,8 @@ namespace Strux\Component\Console\Traits;
 
 use Exception;
 use Strux\Component\Config\Config;
+use Strux\Component\Config\DirectoryInterface;
+use Strux\Support\ContainerBridge;
 use Strux\Support\Helpers\Utils;
 
 trait Generators
@@ -387,45 +389,25 @@ PHP;
     private function createModule(string $name): void
     {
         try {
-            $appMode = $this->getAppMode();
-
-            if ($appMode !== 'domain') {
-                echo "\033[31mError: Modules are only available in 'domain' mode.\033[0m\n";
-                echo "Current mode: $appMode. Check etc/app.php to switch modes.\n";
-                return;
-            }
-
-            $root = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 5);
-            $basePath = $root . '/src/Domain/' . $name;
+            /** @var DirectoryInterface $directories */
+            $directories = $this->container->get(DirectoryInterface::class) ?? ContainerBridge::resolve(DirectoryInterface::class);
+            $basePath = rtrim($directories->get('models'), '/\\') . '/' . $name;
 
             if (is_dir($basePath)) {
                 echo "\033[31mModule '$name' already exists.\033[0m\n";
                 return;
             }
 
-            // Standard Domain Structure
-            $dirs = [
-                'Entity',
-                'Event',
-                'Job',
-                'Listener',
-                'Repository',
-                'Service',
-                'Security'
-            ];
-
-            foreach ($dirs as $dir) {
-                $path = $basePath . '/' . $dir;
-                if (!is_dir($path)) {
-                    mkdir($path, 0755, true);
-                }
+            mkdir($basePath, 0755, true);
+            $subDirs = ['Entity', 'Event', 'Job', 'Listener', 'Repository'];
+            foreach ($subDirs as $subDir) {
+                mkdir($basePath . '/' . $subDir, 0755, true);
+                file_put_contents($basePath . '/' . $subDir . '/.gitkeep', '');
             }
 
-            echo "\033[32mDomain module '$name' scaffolded successfully.\033[0m\n";
-            echo "Location: src/Domain/$name\n";
-
+            echo "\033[32mModule '$name' created successfully.\033[0m\n";
         } catch (Exception $e) {
-            echo "\033[31mError: " . $e->getMessage() . "\033[0m\n";
+            echo "\033[31mError creating module: " . $e->getMessage() . "\033[0m\n";
         }
     }
 
@@ -618,64 +600,31 @@ PHP;
      */
     protected function getPathForType(string $type, string $name, ?string $domain = 'General'): string
     {
-        // Define root path if not defined
-        $root = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 5);
-        $base = $root . '/src';
+        /** @var DirectoryInterface $directories */
+        $directories = $this->container->get(DirectoryInterface::class) ?? ContainerBridge::resolve(DirectoryInterface::class);
 
-        // Normalize name (remove .php if present)
         $name = str_replace('.php', '', $name);
 
-        $appMode = $this->getAppMode();
-
-        if ($appMode === 'standard') {
-            // --- Standard / Flat Structure ---
-            return match ($type) {
-                'entity' => "$base/Entity/$name.php",
-                'event' => "$base/Event/$name.php",
-                'job' => "$base/Job/$name.php",
-                'listener' => "$base/Listener/$name.php",
-                'controller_web' => "$base/Controller/$name.php",
-                'controller_api' => "$base/Controller/Api/$name.php",
-                'request' => "$base/Request/$name.php",
-                'middleware' => "$base/Middleware/$name.php",
-                'registry' => "$base/Registry/$name.php",
-                'seeder' => "$base/Database/Seeds/$name.php",
-
-                default => throw new Exception("Unknown type: $type"),
-            };
-        }
-
-        // --- Domain / DDD Structure (Default) ---
         return match ($type) {
-            'entity' => "$base/Domain/$domain/Entity/$name.php",
-            'event' => "$base/Domain/$domain/Event/$name.php",
-            'job' => "$base/Domain/$domain/Job/$name.php",
-            'listener' => "$base/Domain/$domain/Listener/$name.php",
-
-            // Http Logic (Global)
-            'controller_web' => "$base/Http/Controllers/Web/$name.php",
-            'controller_api' => "$base/Http/Controllers/Api/$name.php",
-            'request' => "$base/Http/Request/$name.php",
-            'middleware' => "$base/Http/Middleware/$name.php",
-            'registry' => "$base/Registry/$name.php",
-
-            // Infrastructure
-            'seeder' => "$base/Infrastructure/Database/Seeds/$name.php",
-
-            default => throw new Exception("Unknown type: $type"),
+            'entity' => rtrim($directories->get('models'), '/\\') . "/{$domain}/Entity/{$name}.php",
+            'event' => rtrim($directories->get('listeners'), '/\\') . "/{$domain}/Event/{$name}.php",
+            'job' => rtrim($directories->get('listeners'), '/\\') . "/{$domain}/Job/{$name}.php",
+            'listener' => rtrim($directories->get('listeners'), '/\\') . "/{$domain}/Listener/{$name}.php",
+            'controller_web' => rtrim($directories->get('controllers'), '/\\') . "/{$name}.php",
+            'controller_api' => rtrim($directories->get('apiControllers'), '/\\') . "/{$name}.php",
+            'request' => rtrim($directories->get('app'), '/\\') . "/Http/Request/{$name}.php",
+            'middleware' => rtrim($directories->get('app'), '/\\') . "/Http/Middleware/{$name}.php",
+            'registry' => rtrim($directories->get('registry'), '/\\') . "/{$name}.php",
+            'seeder' => rtrim($directories->get('seeds'), '/\\') . "/{$name}.php",
+            'form' => rtrim($directories->get('app'), '/\\') . "/Http/Form/{$name}.php",
+            default => throw new Exception("Unknown type: {$type}"),
         };
     }
 
     /**
      * Helper to retrieve the application mode from config
      */
-    private function getAppMode(): string
-    {
-        if (property_exists($this, 'container') && $this->container->has(Config::class)) {
-            return $this->container->get(Config::class)->get('app.mode', 'domain');
-        }
-        return 'domain';
-    }
+
 
     /**
      * Converts a file path into a PHP Namespace based on PSR-4 rules.
@@ -684,23 +633,18 @@ PHP;
     private function getNamespaceFromPath(string $filePath): string
     {
         $dir = dirname($filePath);
+        /** @var DirectoryInterface $directories */
+        $directories = $this->container->get(DirectoryInterface::class) ?? ContainerBridge::resolve(DirectoryInterface::class);
+        $appDir = rtrim($directories->get('app'), '/\\');
 
-        // Find the position of '/src/'
-        $pos = strpos($dir, 'src');
-
-        if ($pos === false) {
-            // Fallback for edge cases or testing
-            return 'App';
+        if (str_starts_with($dir, $appDir)) {
+            $relativePath = substr($dir, strlen($appDir));
+            $relativePath = ltrim($relativePath, '/\\');
+            $ns = str_replace('/', '\\', $relativePath);
+            return empty($ns) ? 'App' : "App\\{$ns}";
         }
 
-        // Get everything after src/
-        $relativePath = substr($dir, $pos + 4); // +4 for length of "src/" or "src" + 1
-        $relativePath = ltrim($relativePath, '/\\');
-
-        // Replace slashes with backslashes
-        $ns = str_replace('/', '\\', $relativePath);
-
-        return "App\\$ns";
+        return 'App';
     }
 
     private function ensureDirectoryExists(string $filePath): void

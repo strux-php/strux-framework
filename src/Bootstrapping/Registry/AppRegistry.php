@@ -8,6 +8,7 @@ use Psr\Container\ContainerInterface;
 use ReflectionClass;
 use ReflectionException;
 use Strux\Component\Config\DirectoryInterface;
+use Strux\Component\Config\DirectoryResolver;
 use Strux\Foundation\Application;
 use Strux\Support\ContainerBridge;
 
@@ -34,6 +35,7 @@ class AppRegistry extends ServiceRegistry
         MiddlewareRegistry::class,
         InfrastructureRegistry::class,
         QueueRegistry::class,
+        FormRegistry::class,
     ];
 
     public function __construct(?ContainerInterface $container)
@@ -141,10 +143,11 @@ class AppRegistry extends ServiceRegistry
         // Use the DirectoryResolver if available, fallback to convention
         if ($this->container->has(DirectoryInterface::class)) {
             /** @var DirectoryInterface $dirs */
-            $dirs = $this->container->get(DirectoryInterface::class);
+            $dirs = $this->container->get(DirectoryInterface::class) ?? ContainerBridge::resolve(DirectoryInterface::class);
             $registryDir = $dirs->get('registry');
         } else {
-            $registryDir = (defined('ROOT_PATH') ? ROOT_PATH : getcwd()) . '/src/Registry';
+            $rootPath = defined('ROOT_PATH') ? ROOT_PATH : getcwd();
+            $registryDir = DirectoryResolver::getDefaults($rootPath)['registry'];
         }
 
         if (!is_dir($registryDir)) {

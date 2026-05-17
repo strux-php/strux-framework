@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Strux\Component\Model;
 
 use Closure;
+use DateTime;
 use PDO;
 use PDOException;
 use PDOStatement;
@@ -239,7 +240,17 @@ abstract class Model
      */
     protected function _performUpdate(array $attributes): bool
     {
-        $attributesToSave = array_filter($attributes, fn($v) => is_scalar($v) || is_null($v));
+        $prepared = [];
+        foreach ($attributes as $key => $value) {
+            if (is_scalar($value) || is_null($value)) {
+                $prepared[$key] = $value;
+            } elseif (is_array($value)) {
+                $prepared[$key] = json_encode($value);
+            } elseif ($value instanceof DateTime) {
+                $prepared[$key] = $value->format('Y-m-d H:i:s');
+            }
+        }
+        $attributesToSave = $prepared;
         $dirty = [];
 
         foreach ($attributesToSave as $key => $value) {
@@ -267,7 +278,17 @@ abstract class Model
      */
     protected function _performInsert(array $attributes): bool
     {
-        $attributesToSave = array_filter($attributes, fn($v) => is_scalar($v) || is_null($v));
+        $prepared = [];
+        foreach ($attributes as $key => $value) {
+            if (is_scalar($value) || is_null($value)) {
+                $prepared[$key] = $value;
+            } elseif (is_array($value)) {
+                $prepared[$key] = json_encode($value);
+            } elseif ($value instanceof DateTime) {
+                $prepared[$key] = $value->format('Y-m-d H:i:s');
+            }
+        }
+        $attributesToSave = $prepared;
 
         if (array_key_exists($this->getPrimaryKey(), $attributesToSave) && $attributesToSave[$this->getPrimaryKey()] === null) {
             unset($attributesToSave[$this->getPrimaryKey()]);

@@ -10,12 +10,17 @@ trait ServerCommands
 {
     private function linkStorage(): void
     {
-        $rootPath = defined(ROOT_PATH) ? ROOT_PATH : dirname(__DIR__, 4);
-        $publicPath = $rootPath . '/web/storage';
+        $rootPath = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 4);
+        
+        $publicDir = $this->container->has(\Strux\Component\Config\DirectoryInterface::class) 
+            ? $this->container->get(\Strux\Component\Config\DirectoryInterface::class)->get('public')
+            : \Strux\Component\Config\DirectoryResolver::getDefaults($rootPath)['public'];
+
+        $publicPath = $publicDir . '/storage';
         $storagePath = $rootPath . '/storage/app/web';
 
         if (file_exists($publicPath) || is_link($publicPath)) {
-            echo "The [web/storage] link already exists.\n";
+            echo "The [" . basename($publicDir) . "/storage] link already exists.\n";
             return;
         }
         if (!is_dir($storagePath)) {
@@ -23,7 +28,7 @@ trait ServerCommands
         }
         try {
             symlink($storagePath, $publicPath);
-            echo "The [web/storage] directory has been linked.\n";
+            echo "The [" . basename($publicDir) . "/storage] directory has been linked.\n";
         } catch (Exception $e) {
             echo "Error creating symlink: " . $e->getMessage() . "\n";
         }
@@ -31,11 +36,16 @@ trait ServerCommands
 
     private function unlinkStorage(): void
     {
-        $rootPath = ROOT_PATH;
-        $publicPath = $rootPath . '/web/storage';
+        $rootPath = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 4);
+        
+        $publicDir = $this->container->has(\Strux\Component\Config\DirectoryInterface::class) 
+            ? $this->container->get(\Strux\Component\Config\DirectoryInterface::class)->get('public')
+            : \Strux\Component\Config\DirectoryResolver::getDefaults($rootPath)['public'];
+
+        $publicPath = $publicDir . '/storage';
 
         if (!file_exists($publicPath) && !is_link($publicPath)) {
-            echo "The [web/storage] link does not exist.\n";
+            echo "The [" . basename($publicDir) . "/storage] link does not exist.\n";
             return;
         }
 
@@ -47,11 +57,11 @@ trait ServerCommands
                     unlink($publicPath);
                 }
             } else {
-                echo "Error: [web/storage] is a directory, not a symlink. Manual removal required.\n";
+                echo "Error: [" . basename($publicDir) . "/storage] is a directory, not a symlink. Manual removal required.\n";
                 return;
             }
 
-            echo "The [web/storage] link has been removed.\n";
+            echo "The [" . basename($publicDir) . "/storage] link has been removed.\n";
         } catch (Exception $e) {
             echo "Error removing symlink: " . $e->getMessage() . "\n";
         }

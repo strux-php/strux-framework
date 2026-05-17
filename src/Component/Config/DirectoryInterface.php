@@ -38,4 +38,19 @@ interface DirectoryInterface
      * Get the application root path.
      */
     public function rootPath(): string;
+
+    /**
+     * Set a directory path.
+     *
+     * @param string $key The directory key (e.g., 'controllers', 'views', 'cache')
+     * @param string $value The absolute path
+     */
+    public function set(string $key, string $value): void;
+
+    /**
+     * Remove a directory path.
+     *
+     * @param string $key The directory key (e.g., 'controllers', 'views', 'cache')
+     */
+    public function remove(string $key): void;
 }

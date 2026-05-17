@@ -74,24 +74,46 @@ class ClassFinder
      */
     private static function getClassNameFromFile(string $filePath): ?string
     {
-        // 1. Find where 'src' starts
-        $srcPos = strpos($filePath, 'src' . DIRECTORY_SEPARATOR);
+        $fp = fopen($filePath, 'r');
+        $class = $namespace = $buffer = '';
+        $i = 0;
+        
+        while (!$class) {
+            if (feof($fp)) break;
 
-        if ($srcPos !== false) {
-            // 2. Extract relative path after src/
-            // +4 length of "src" + separator
-            $relativePath = substr($filePath, $srcPos + 4);
+            $buffer .= fread($fp, 512);
+            $tokens = token_get_all($buffer);
 
-            // 3. Remove extension
-            $relativePath = str_replace('.php', '', $relativePath);
+            if (!str_contains($buffer, '{')) continue;
 
-            // 4. Convert slashes to namespace backslashes
-            $classPath = str_replace(DIRECTORY_SEPARATOR, '\\', $relativePath);
+            for (; $i < count($tokens); $i++) {
+                if ($tokens[$i][0] === T_NAMESPACE) {
+                    for ($j = $i + 1; $j < count($tokens); $j++) {
+                        if ($tokens[$j][0] === T_NAME_QUALIFIED || $tokens[$j][0] === T_STRING) {
+                            $namespace .= '\\' . $tokens[$j][1];
+                        } else if ($tokens[$j] === '{' || $tokens[$j] === ';') {
+                            break;
+                        }
+                    }
+                    $namespace = ltrim($namespace, '\\');
+                }
 
-            // 5. Prepend App base namespace
-            return "App\\" . $classPath;
+                if ($tokens[$i][0] === T_CLASS) {
+                    for ($j = $i + 1; $j < count($tokens); $j++) {
+                        if ($tokens[$j] === '{') {
+                            $class = $tokens[$i+2][1];
+                            break;
+                        }
+                    }
+                }
+            }
         }
-
-        return null;
+        fclose($fp);
+        
+        if ($class === '') {
+            return null;
+        }
+        
+        return $namespace ? $namespace . '\\' . $class : $class;
     }
 }

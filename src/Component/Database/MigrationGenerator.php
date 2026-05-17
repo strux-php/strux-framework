@@ -15,6 +15,7 @@ use Strux\Component\Database\Attributes\Table;
 use Strux\Component\Database\Migration\Blueprint;
 use Strux\Component\Database\Migration\MigrationWriter;
 use Strux\Component\Database\Migration\ModelBuilder;
+use Strux\Component\Config\DirectoryInterface;
 
 class MigrationGenerator
 {
@@ -22,32 +23,19 @@ class MigrationGenerator
     private PDO $db;
     private MigrationWriter $writer;
     private string $srcPath;
+    private DirectoryInterface $directories;
 
-    public function __construct(Config $config, PDO $db)
+    public function __construct(Config $config, PDO $db, DirectoryInterface $directories)
     {
         $this->config = $config;
         $this->db = $db;
-
-        // Prioritize ROOT_PATH constant if defined (e.g., from index.php or console)
-        if (defined('ROOT_PATH')) {
-            $projectRoot = ROOT_PATH;
-        } else {
-            // Fallback: Go up 3 levels from 'Kernel/Component/Database' to reach project root
-            // 1: Component, 2: Kernel, 3: Root
-            $projectRoot = dirname(__DIR__, 3);
-        }
-
-        // Use realpath to normalize slashes and ensure it exists
-        $this->srcPath = realpath($projectRoot . '/src');
-
-        if (!$this->srcPath) {
-            // Fallback for setups where src might not exist or permissions issue
-            $this->srcPath = $projectRoot . '/src';
-        }
-
+        $this->directories = $directories;
+        
+        $projectRoot = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 5);
         $this->writer = new MigrationWriter($projectRoot);
+        
+        $this->srcPath = rtrim($this->directories->get('app'), '/\\');
     }
-
     /**
      * @throws ReflectionException
      * @throws Exception
@@ -250,3 +238,4 @@ class MigrationGenerator
         return $matches[0];
     }
 }
+

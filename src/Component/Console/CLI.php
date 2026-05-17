@@ -10,7 +10,10 @@ use PDO;
 use Psr\Container\ContainerInterface;
 use ReflectionException;
 use ReflectionFunction;
+use Strux\Component\Config\DirectoryInterface;
+use Strux\Component\Config\DirectoryResolver;
 use Strux\Component\Console\Traits\DatabaseCommands;
+use Strux\Component\Console\Traits\FormCommands;
 use Strux\Component\Console\Traits\Generators;
 use Strux\Component\Console\Traits\QueueCommands;
 use Strux\Component\Console\Traits\ServerCommands;
@@ -20,6 +23,7 @@ use Strux\Support\ContainerBridge;
 class CLI
 {
     use Generators;
+    use FormCommands;
     use DatabaseCommands;
     use QueueCommands;
     use SessionCommands;
@@ -164,6 +168,20 @@ class CLI
             }
         );
 
+        // Form
+        $this->register(
+            'new:form {name} [--infer=] [--domain=] [--namespace=] [--force] [--exclude=] [--rules=] [--no-submit]',
+            'Create a new form class',
+            function ($n = null, $o = []) {
+                if (!is_string($n) || empty($n)) {
+                    echo "\033[31mError: Form name is required.\033[0m\nUsage: php bin/console new:form <Name> [--infer=Model] [--domain=Web] [--rules=required]\n";
+                    return;
+                }
+                $this->createForm($n, $o);
+            }
+        );
+        $this->commands['g:f'] = &$this->commands['new:form {name} [--infer=] [--domain=] [--namespace=] [--force] [--exclude=] [--rules=] [--no-submit]'];
+
         $this->register('auth:init', 'Scaffold auth', fn() => $this->initAuth());
 
         // --- Database ---
@@ -194,7 +212,11 @@ class CLI
         $this->register('var:link', 'Link the storage directory to web', fn() => $this->linkStorage());
         $this->register('var:unlink', 'Unlink the storage directory from web', fn() => $this->unlinkStorage());
         $this->register('run', 'Run dev server', function () {
-            $publicDir = $this->rootPath . '/web';
+            /** @var DirectoryInterface $directoryResolver */
+            $directoryResolver = $this->container->has(DirectoryInterface::class)
+                ? $this->container->get(DirectoryInterface::class)
+                : ContainerBridge::get(DirectoryInterface::class);
+            $publicDir = $directoryResolver->get('public') ?? DirectoryResolver::getDefaults($this->rootPath)['public'];
             passthru('php -S 127.0.0.1:8000 -t "' . escapeshellarg($publicDir) . '"');
         });
     }

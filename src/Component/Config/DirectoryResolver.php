@@ -33,7 +33,7 @@ class DirectoryResolver implements DirectoryInterface
     public function __construct(string $rootPath, array $overrides = [])
     {
         $this->rootPath = rtrim($rootPath, '/\\');
-        $this->directories = array_merge($this->defaults(), $overrides);
+        $this->directories = array_merge(self::getDefaults($this->rootPath), $overrides);
     }
 
     /**
@@ -103,10 +103,6 @@ class DirectoryResolver implements DirectoryInterface
      */
     public function remove(string $key): void
     {
-        if (!$this->has($key)) {
-            return;
-        }
-
         unset($this->directories[$key]);
     }
 
@@ -116,9 +112,9 @@ class DirectoryResolver implements DirectoryInterface
      *
      * @return array<string, string>
      */
-    private function defaults(): array
+    public static function getDefaults(string $rootPath): array
     {
-        $root = $this->rootPath;
+        $root = rtrim($rootPath, '/\\');
 
         return [
             // Application source

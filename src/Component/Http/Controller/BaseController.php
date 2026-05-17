@@ -23,6 +23,7 @@ use Strux\Component\Session\SessionInterface;
 use Strux\Component\View\ViewInterface;
 use Strux\Support\ContainerBridge;
 use Strux\Support\Helpers\FlashInterface;
+use Strux\Component\Form\FormFactory;
 
 /**
  * Class BaseController
@@ -39,6 +40,7 @@ abstract class BaseController
     protected ?FlashInterface $flash = null;
     protected ?ResponseFactoryInterface $responseFactory = null;
     protected ?AuthManager $authManager = null;
+    protected ?FormFactory $forms = null;
 
     /**
      * @throws ContainerExceptionInterface
@@ -46,18 +48,18 @@ abstract class BaseController
      * @throws NotFoundExceptionInterface
      */
     public function __construct(
-        ?ContainerInterface       $container = null,
-        ?Request                  $request = null,
+        ?ContainerInterface $container = null,
+        ?Request $request = null,
         ?ResponseFactoryInterface $responseFactory = null,
-        ?PDO                      $db = null,
-        ?SessionInterface         $session = null,
-        ?LoggerInterface          $logger = null,
-        ?ViewInterface            $view = null,
+        ?PDO $db = null,
+        ?SessionInterface $session = null,
+        ?LoggerInterface $logger = null,
+        ?ViewInterface $view = null,
         ?EventDispatcherInterface $event = null,
-        ?FlashInterface           $flash = null,
-        ?AuthManager              $authManager = null
-    )
-    {
+        ?FlashInterface $flash = null,
+        ?AuthManager $authManager = null,
+        ?FormFactory $forms = null
+    ) {
         $this->container = $container ?? ContainerBridge::getContainer();
         $this->request = $request ?? ($this->container->has(Request::class)
             ? $this->container->get(Request::class)
@@ -96,6 +98,10 @@ abstract class BaseController
             ? $this->container->get(AuthManager::class)
             : ContainerBridge::resolve(AuthManager::class)
         );
+        $this->forms = $forms ?? ($this->container->has(FormFactory::class)
+            ? $this->container->get(FormFactory::class)
+            : ContainerBridge::resolve(FormFactory::class)
+        );
     }
 
     /**
@@ -131,7 +137,7 @@ abstract class BaseController
     {
         if ($this->flash) {
             foreach ($messages as $type => $message) {
-                $this->flash->set((string)$type, $message);
+                $this->flash->set((string) $type, $message);
             }
         } elseif (!empty($messages)) {
             $this->logWarning("FlashService not available, cannot flash messages for redirect.", ['messages' => $messages]);
@@ -174,7 +180,7 @@ abstract class BaseController
         } catch (InvalidArgumentException $e) {
             $this->logError("Error generating route '$routeName': " . $e->getMessage(), ['data' => $data, 'queryParams' => $queryParams]);
             throw new RuntimeException("Failed to generate URL for route '$routeName': " . $e->getMessage(), 0, $e);
-        } catch (NotFoundExceptionInterface|ContainerExceptionInterface $e) {
+        } catch (NotFoundExceptionInterface | ContainerExceptionInterface $e) {
             $this->logError("Router service not found or error in route generation: " . $e->getMessage(), ['route_name' => $routeName, 'data' => $data, 'queryParams' => $queryParams]);
             throw new RuntimeException("Router service not available or route '$routeName' not found.");
         }

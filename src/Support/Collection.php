@@ -74,7 +74,7 @@ class Collection implements IteratorAggregate, Countable, JsonSerializable
 
     public function jsonSerialize(): array
     {
-        return $this->items;
+        return $this->toArray();
     }
 
     public function map(callable $callback): self
@@ -85,5 +85,30 @@ class Collection implements IteratorAggregate, Countable, JsonSerializable
     public function filter(callable $callback): self
     {
         return new static(array_values(array_filter($this->items, $callback)));
+    }
+
+    public function hide(array $fields, ?callable $condition = null): static
+    {
+        foreach ($this->items as $item) {
+            if (method_exists($item, 'hide')) {
+                $item->hide($fields, $condition);
+            }
+        }
+        return $this;
+    }
+
+    public function unhide(array $fields, ?callable $condition = null): static
+    {
+        foreach ($this->items as $item) {
+            if (method_exists($item, 'unhide')) {
+                $item->unhide($fields, $condition);
+            }
+        }
+        return $this;
+    }
+
+    public function toArray(): array
+    {
+        return array_map(fn($item) => is_object($item) && method_exists($item, 'toArray') ? $item->toArray() : $item, $this->items);
     }
 }

@@ -38,7 +38,7 @@ trait DatabaseCommands
     {
         $table = $this->getMigrationTable();
         $rootPath = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 4);
-        $migrationDir = $rootPath . '/database/migrations';
+        $migrationDir = ($this->container->has(\Strux\Component\Config\DirectoryInterface::class) ? $this->container->get(\Strux\Component\Config\DirectoryInterface::class)->get('migrations') : \Strux\Component\Config\DirectoryResolver::getDefaults($rootPath)['migrations']);
 
         $sql = "CREATE TABLE IF NOT EXISTS `$table` (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -65,7 +65,7 @@ trait DatabaseCommands
                 echo "Targeting specific model: $model\n";
             }
 
-            $generator = new MigrationGenerator($config, $db);
+            $generator = new MigrationGenerator($config, $db, $this->container->get(\Strux\Component\Config\DirectoryInterface::class));
             $generator->generate($model, $name);
         } catch (Exception $e) {
             echo "Migration generation failed: " . $e->getMessage() . "\n";
@@ -82,7 +82,8 @@ trait DatabaseCommands
         $this->initDatabase();
 
         $ranMigrations = $pdo->query("SELECT migration FROM `$table`")->fetchAll(PDO::FETCH_COLUMN);
-        $migrationFiles = glob($rootPath . '/database/migrations/*.php');
+        $migrationDir = $this->container->has(\Strux\Component\Config\DirectoryInterface::class) ? $this->container->get(\Strux\Component\Config\DirectoryInterface::class)->get('migrations') : \Strux\Component\Config\DirectoryResolver::getDefaults($rootPath)['migrations'];
+        $migrationFiles = glob($migrationDir . '/*.php');
         sort($migrationFiles);
 
         $batch = empty($ranMigrations) ? 1 : $pdo->query("SELECT MAX(batch) FROM `$table`")->fetchColumn() + 1;
@@ -131,7 +132,8 @@ trait DatabaseCommands
         echo "Reverting Batch $lastBatch...\n";
 
         foreach ($filesToRevert as $migrationName) {
-            $filePath = $rootPath . '/database/migrations/' . $migrationName;
+            $migrationDir = $this->container->has(\Strux\Component\Config\DirectoryInterface::class) ? $this->container->get(\Strux\Component\Config\DirectoryInterface::class)->get('migrations') : \Strux\Component\Config\DirectoryResolver::getDefaults($rootPath)['migrations'];
+            $filePath = $migrationDir . '/' . $migrationName;
             if (file_exists($filePath)) {
                 echo "Reverting: $migrationName\n";
                 $migration = require $filePath;
@@ -188,7 +190,7 @@ trait DatabaseCommands
 
         $rootPath = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 4);
 
-        $migrationDir = realpath($rootPath . '/database/migrations');
+        $migrationDir = realpath(($this->container->has(\Strux\Component\Config\DirectoryInterface::class) ? $this->container->get(\Strux\Component\Config\DirectoryInterface::class)->get('migrations') : \Strux\Component\Config\DirectoryResolver::getDefaults($rootPath)['migrations']));
 
         if ($migrationDir && is_dir($migrationDir)) {
             $files = glob($migrationDir . '/*.php');

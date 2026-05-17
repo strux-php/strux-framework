@@ -9,6 +9,7 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Strux\Component\Config\Config;
 use Strux\Component\Database\Database;
+use Strux\Component\Database\Seeder\SeederRunner;
 
 class DatabaseRegistry extends ServiceRegistry
 {
@@ -24,6 +25,10 @@ class DatabaseRegistry extends ServiceRegistry
         $this->container->singleton(
             PDO::class,
             static fn(ContainerInterface $c) => $c->get(Database::class)->getConnection()
+        );
+        $this->container->singleton(
+            SeederRunner::class,
+            static fn(ContainerInterface $c) => new SeederRunner($c->get(PDO::class), $c)
         );
     }
 }

@@ -82,15 +82,16 @@ class Application
      */
     public function getLogDir(): string
     {
-        if ($this->container->has(DirectoryInterface::class)) {
-            return $this->container->get(DirectoryInterface::class)->get('logs');
+        if ($this->container->has(\Strux\Component\Config\DirectoryInterface::class)) {
+            return $this->container->get(\Strux\Component\Config\DirectoryInterface::class)->get('logs');
         }
 
-        if ($this->container->has(Config::class)) {
-            return $this->container->get(Config::class)->get('app.log_dir', $this->rootPath . '/var/logs');
+        if ($this->container->has(\Strux\Component\Config\Config::class)) {
+            $default = \Strux\Component\Config\DirectoryResolver::getDefaults($this->rootPath)['logs'];
+            return $this->container->get(\Strux\Component\Config\Config::class)->get('app.log_dir', $default);
         }
 
-        throw new RuntimeException('Logger does not support retrieving log directory.');
+        return \Strux\Component\Config\DirectoryResolver::getDefaults($this->rootPath)['logs'];
     }
 
     /**
@@ -98,15 +99,16 @@ class Application
      */
     public function getCacheDir(): string
     {
-        if ($this->container->has(DirectoryInterface::class)) {
-            return $this->container->get(DirectoryInterface::class)->get('cache');
+        if ($this->container->has(\Strux\Component\Config\DirectoryInterface::class)) {
+            return $this->container->get(\Strux\Component\Config\DirectoryInterface::class)->get('cache');
         }
 
-        if ($this->container->has(Config::class)) {
-            return $this->container->get(Config::class)->get('app.cache_dir', $this->rootPath . '/var/cache');
+        if ($this->container->has(\Strux\Component\Config\Config::class)) {
+            $default = \Strux\Component\Config\DirectoryResolver::getDefaults($this->rootPath)['cache'];
+            return $this->container->get(\Strux\Component\Config\Config::class)->get('app.cache_dir', $default);
         }
 
-        throw new RuntimeException('Config service not found in container.');
+        return \Strux\Component\Config\DirectoryResolver::getDefaults($this->rootPath)['cache'];
     }
 
     /**
@@ -114,15 +116,16 @@ class Application
      */
     public function getViewDir(): string
     {
-        if ($this->container->has(DirectoryInterface::class)) {
-            return $this->container->get(DirectoryInterface::class)->get('views');
+        if ($this->container->has(\Strux\Component\Config\DirectoryInterface::class)) {
+            return $this->container->get(\Strux\Component\Config\DirectoryInterface::class)->get('views');
         }
 
-        if ($this->container->has(Config::class)) {
-            return $this->container->get(Config::class)->get('app.view_dir', $this->rootPath . '/templates');
+        if ($this->container->has(\Strux\Component\Config\Config::class)) {
+            $default = \Strux\Component\Config\DirectoryResolver::getDefaults($this->rootPath)['views'];
+            return $this->container->get(\Strux\Component\Config\Config::class)->get('app.view_dir', $default);
         }
 
-        throw new RuntimeException('Config service not found in container.');
+        return \Strux\Component\Config\DirectoryResolver::getDefaults($this->rootPath)['views'];
     }
 
     /**
