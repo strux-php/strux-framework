@@ -8,7 +8,7 @@ use Attribute;
 use Strux\Component\Database\Types\KeyAction;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class BelongsTo extends RelationAttribute
+class OwnedBy extends RelationAttribute
 {
     public function __construct(
         public string    $related,

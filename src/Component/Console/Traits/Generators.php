@@ -435,7 +435,7 @@ use Strux\Component\Database\Attributes\Id;
 use Strux\Component\Database\Attributes\Table;
 use Strux\Component\Database\Attributes\Unique;
 use Strux\Component\Database\Types\Field;
-use Strux\Component\ORM\Attributes\BelongsToMany;
+use Strux\Component\ORM\Attributes\OwnedByMany;
 use Strux\Component\ORM\Model;
 use Strux\Support\Collection;
 
@@ -465,7 +465,7 @@ class User extends Model
     #[Column(type: Field::timestamp, currentTimestamp: true, onUpdateCurrentTimestamp: true)]
     public ?DateTime \$updatedAt = null;
 
-    #[BelongsToMany(related: Roles::class)]
+    #[OwnedByMany(related: Roles::class)]
     public Collection \$roles;
 
     /**
@@ -515,7 +515,7 @@ use Strux\Component\Database\Attributes\Column;
 use Strux\Component\Database\Attributes\Id;
 use Strux\Component\Database\Attributes\Table;
 use Strux\Component\Database\Attributes\Unique;
-use Strux\Component\ORM\Attributes\BelongsToMany;
+use Strux\Component\ORM\Attributes\OwnedByMany;
 use Strux\Component\ORM\Model;
 use Strux\Support\Collection;
 
@@ -534,10 +534,10 @@ class Roles extends Model
     #[Column(nullable: true)]
     public ?string \$description = null;
 
-    #[BelongsToMany(related: User::class)]
+    #[OwnedByMany(related: User::class)]
     public Collection \$users;
 
-    #[BelongsToMany(related: Permissions::class)]
+    #[OwnedByMany(related: Permissions::class)]
     public Collection \$permissions;
 }
 PHP;
@@ -557,7 +557,7 @@ use Strux\Component\Database\Attributes\Column;
 use Strux\Component\Database\Attributes\Id;
 use Strux\Component\Database\Attributes\Table;
 use Strux\Component\Database\Attributes\Unique;
-use Strux\Component\ORM\Attributes\BelongsToMany;
+use Strux\Component\ORM\Attributes\OwnedByMany;
 use Strux\Component\ORM\Model;
 use Strux\Support\Collection;
 
@@ -573,7 +573,7 @@ class Permissions extends Model
     #[Column, Unique]
     public string \$slug;
 
-    #[BelongsToMany(related: Roles::class)]
+    #[OwnedByMany(related: Roles::class)]
     public Collection \$roles;
 }
 PHP;

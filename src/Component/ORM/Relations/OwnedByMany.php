@@ -12,7 +12,7 @@ use Strux\Component\ORM\Model;
 use Strux\Support\Collection;
 use Strux\Support\ContainerBridge;
 
-class BelongsToMany extends Relation
+class OwnedByMany extends Relation
 {
     private string $pivotTable;
     private string $foreignPivotKey;

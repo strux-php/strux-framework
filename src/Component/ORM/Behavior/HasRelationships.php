@@ -10,16 +10,16 @@ use ReflectionException;
 use ReflectionProperty;
 use RuntimeException;
 use Strux\Component\Database\Attributes\Table;
-use Strux\Component\ORM\Attributes\BelongsTo as BelongsToAttr;
-use Strux\Component\ORM\Attributes\BelongsToMany as BelongsToManyAttr;
-use Strux\Component\ORM\Attributes\HasMany as HasManyAttr;
-use Strux\Component\ORM\Attributes\HasOne as HasOneAttr;
+use Strux\Component\ORM\Attributes\OwnedBy as OwnedByAttr;
+use Strux\Component\ORM\Attributes\OwnedByMany as OwnedByManyAttr;
+use Strux\Component\ORM\Attributes\OwnsMany as OwnsManyAttr;
+use Strux\Component\ORM\Attributes\OwnsOne as OwnsOneAttr;
 use Strux\Component\ORM\Attributes\RelationAttribute;
 use Strux\Component\ORM\Model;
-use Strux\Component\ORM\Relations\BelongsTo;
-use Strux\Component\ORM\Relations\BelongsToMany;
-use Strux\Component\ORM\Relations\HasMany;
-use Strux\Component\ORM\Relations\HasOne;
+use Strux\Component\ORM\Relations\OwnedBy;
+use Strux\Component\ORM\Relations\OwnedByMany;
+use Strux\Component\ORM\Relations\OwnsMany;
+use Strux\Component\ORM\Relations\OwnsOne;
 use Strux\Component\ORM\Relations\Relation;
 use Strux\Support\Collection;
 use Strux\Support\Helpers\Utils;
@@ -90,10 +90,10 @@ trait HasRelationships
     {
         $attrInstance = $attribute->newInstance();
         return match ($attribute->getName()) {
-            HasOneAttr::class => $this->hasOne($attrInstance->related, $attrInstance->foreignKey, $attrInstance->localKey),
-            HasManyAttr::class => $this->hasMany($attrInstance->related, $attrInstance->foreignKey, $attrInstance->localKey),
-            BelongsToAttr::class => $this->belongsTo($attrInstance->related, $attrInstance->foreignKey, $attrInstance->ownerKey),
-            BelongsToManyAttr::class => $this->belongsToMany($attrInstance->related, $attrInstance->pivotTable, $attrInstance->foreignPivotKey, $attrInstance->relatedPivotKey),
+            OwnsOneAttr::class => $this->ownsOne($attrInstance->related, $attrInstance->foreignKey, $attrInstance->localKey),
+            OwnsManyAttr::class => $this->ownsMany($attrInstance->related, $attrInstance->foreignKey, $attrInstance->localKey),
+            OwnedByAttr::class => $this->ownedBy($attrInstance->related, $attrInstance->foreignKey, $attrInstance->ownerKey),
+            OwnedByManyAttr::class => $this->ownedByMany($attrInstance->related, $attrInstance->pivotTable, $attrInstance->foreignPivotKey, $attrInstance->relatedPivotKey),
             default => throw new RuntimeException("Unknown relationship attribute: " . $attribute->getName()),
         };
     }
@@ -148,35 +148,35 @@ trait HasRelationships
 
     // --- Definition Methods ---
 
-    protected function hasOne(string $relatedModel, ?string $foreignKey = null, ?string $localKey = null): HasOne
+    protected function ownsOne(string $relatedModel, ?string $foreignKey = null, ?string $localKey = null): OwnsOne
     {
         /** @var Model $relatedInstance */
         $relatedInstance = new $relatedModel();
         $foreignKey = $foreignKey ?: strtolower((new ReflectionClass($this))->getShortName()) . '_' . $this->getPrimaryKey();
         $localKey = $localKey ?: $this->getPrimaryKey();
 
-        return new HasOne($relatedInstance, $this, $foreignKey, $localKey);
+        return new OwnsOne($relatedInstance, $this, $foreignKey, $localKey);
     }
 
-    protected function hasMany(string $relatedModel, ?string $foreignKey = null, ?string $localKey = null): HasMany
+    protected function ownsMany(string $relatedModel, ?string $foreignKey = null, ?string $localKey = null): OwnsMany
     {
         /** @var Model $relatedInstance */
         $relatedInstance = new $relatedModel();
         $foreignKey = $foreignKey ?: strtolower((new ReflectionClass($this))->getShortName()) . '_' . $this->getPrimaryKey();
         $localKey = $localKey ?: $this->getPrimaryKey();
-        return new HasMany($relatedInstance, $this, $foreignKey, $localKey);
+        return new OwnsMany($relatedInstance, $this, $foreignKey, $localKey);
     }
 
-    protected function belongsTo(string $relatedModel, ?string $foreignKey = null, ?string $ownerKey = null): BelongsTo
+    protected function ownedBy(string $relatedModel, ?string $foreignKey = null, ?string $ownerKey = null): OwnedBy
     {
         /** @var Model $relatedInstance */
         $relatedInstance = new $relatedModel();
         $foreignKey = $foreignKey ?: strtolower($relatedInstance->reflection()->getShortName()) . '_' . $relatedInstance->getPrimaryKey();
         $ownerKey = $ownerKey ?: $relatedInstance->getPrimaryKey();
-        return new BelongsTo($relatedInstance, $this, $foreignKey, $ownerKey);
+        return new OwnedBy($relatedInstance, $this, $foreignKey, $ownerKey);
     }
 
-    protected function belongsToMany(string $relatedModel, ?string $pivotTable = null, ?string $foreignPivotKey = null, ?string $relatedPivotKey = null): BelongsToMany
+    protected function ownedByMany(string $relatedModel, ?string $pivotTable = null, ?string $foreignPivotKey = null, ?string $relatedPivotKey = null): OwnedByMany
     {
         /** @var Model $relatedInstance */
         $relatedInstance = new $relatedModel();
@@ -203,6 +203,6 @@ trait HasRelationships
         $foreignPivotKey = $foreignPivotKey ?? $this->getPrimaryKey() ?? strtolower($this->reflection()->getShortName()) . '_' . $this->getPrimaryKey();
         $relatedPivotKey = $relatedPivotKey ?? $relatedInstance->getPrimaryKey() ?? strtolower($relatedInstance->reflection()->getShortName()) . '_' . $relatedInstance->getPrimaryKey();
 
-        return new BelongsToMany($relatedInstance, $this, $pivotTable, $foreignPivotKey, $relatedPivotKey, $this->getPrimaryKey(), $relatedInstance->getPrimaryKey());
+        return new OwnedByMany($relatedInstance, $this, $pivotTable, $foreignPivotKey, $relatedPivotKey, $this->getPrimaryKey(), $relatedInstance->getPrimaryKey());
     }
 }

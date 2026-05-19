@@ -7,13 +7,12 @@ namespace Strux\Component\ORM\Attributes;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class BelongsToMany extends RelationAttribute
+class OwnsMany extends RelationAttribute
 {
     public function __construct(
         public string  $related,
-        public ?string $pivotTable = null,
-        public ?string $foreignPivotKey = null,
-        public ?string $relatedPivotKey = null,
+        public ?string $foreignKey = null,
+        public ?string $localKey = null,
         public string  $onDelete = 'cascade',
         public string  $onUpdate = 'cascade'
     )

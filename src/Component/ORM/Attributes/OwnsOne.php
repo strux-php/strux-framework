@@ -7,7 +7,7 @@ namespace Strux\Component\ORM\Attributes;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class HasOne extends RelationAttribute
+class OwnsOne extends RelationAttribute
 {
     public function __construct(
         public string  $related,

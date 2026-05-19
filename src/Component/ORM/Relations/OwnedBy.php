@@ -1,20 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Strux\Component\ORM\Relations;
 
 use InvalidArgumentException;
 use Strux\Component\ORM\Model;
 use Strux\Support\Collection;
 
-class HasOne extends Relation
+class OwnedBy extends Relation
 {
     protected string $foreignKey;
-    protected string $localKey;
+    protected string $ownerKey;
 
-    public function __construct(Model $related, Model $parent, string $foreignKey, string $localKey)
+    public function __construct(Model $related, Model $parent, string $foreignKey, string $ownerKey)
     {
         $this->foreignKey = $foreignKey;
-        $this->localKey = $localKey;
+        $this->ownerKey = $ownerKey;
 
         parent::__construct($related, $parent);
 
@@ -24,37 +26,28 @@ class HasOne extends Relation
         }
     }
 
-    /**
-     * Get the result for a lazy-loaded relationship.
-     */
     public function getResults(): ?Model
     {
         return $this->getQuery()
-            ->where($this->foreignKey, $this->parent->{$this->localKey})
+            ->where($this->ownerKey, $this->parent->{$this->foreignKey})
             ->first();
     }
 
-    /**
-     * Add constraints for an eager-loaded relationship.
-     */
     public function addEagerConstraints(array $models): void
     {
-        $keys = array_map(fn($model) => $model->{$this->localKey}, $models);
-        $this->getQuery()->whereIn($this->foreignKey, array_unique($keys));
+        $keys = array_map(fn($model) => $model->{$this->foreignKey}, $models);
+        $this->getQuery()->whereIn($this->ownerKey, array_unique($keys));
     }
 
-    /**
-     * Match the eager-loaded results back to their parents.
-     */
     public function match(array $models, Collection $results, string $relation): array
     {
         $dictionary = [];
         foreach ($results as $result) {
-            $dictionary[$result->{$this->foreignKey}] = $result;
+            $dictionary[$result->{$this->ownerKey}] = $result;
         }
 
         foreach ($models as $model) {
-            $key = $model->{$this->localKey};
+            $key = $model->{$this->foreignKey};
             $model->setRelation($relation, $dictionary[$key] ?? null);
         }
         return $models;

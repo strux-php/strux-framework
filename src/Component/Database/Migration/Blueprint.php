@@ -11,8 +11,8 @@ use Strux\Component\Database\Attributes\Id;
 use Strux\Component\Database\Attributes\Table;
 use Strux\Component\Database\Attributes\Unique;
 use Strux\Component\Database\Types\Field;
-use Strux\Component\ORM\Attributes\BelongsTo;
-use Strux\Component\ORM\Attributes\BelongsToMany;
+use Strux\Component\ORM\Attributes\OwnedBy;
+use Strux\Component\ORM\Attributes\OwnedByMany;
 use Strux\Support\Helpers\Utils;
 
 class Blueprint
@@ -76,11 +76,11 @@ class Blueprint
         $processedColumns = [];
 
         foreach ($reflection->getProperties() as $property) {
-            $belongsToAttr = $property->getAttributes(BelongsTo::class)[0] ?? null;
+            $ownedByAttr = $property->getAttributes(OwnedBy::class)[0] ?? null;
 
-            if ($belongsToAttr) {
-                /** @var BelongsTo $instance */
-                $instance = $belongsToAttr->newInstance();
+            if ($ownedByAttr) {
+                /** @var OwnedBy $instance */
+                $instance = $ownedByAttr->newInstance();
 
                 $relatedClass = $instance->related;
 
@@ -155,10 +155,10 @@ class Blueprint
         $collation = $dbConfig['collation'] ?? 'utf8mb4_unicode_ci';
 
         foreach ($reflection->getProperties() as $property) {
-            $attr = $property->getAttributes(BelongsToMany::class)[0] ?? null;
+            $attr = $property->getAttributes(OwnedByMany::class)[0] ?? null;
             if (!$attr) continue;
 
-            /** @var BelongsToMany $instance */
+            /** @var OwnedByMany $instance */
             $instance = $attr->newInstance();
 
             $relatedClass = $instance->related;
@@ -272,10 +272,10 @@ class Blueprint
         $sql = [];
 
         foreach ($reflection->getProperties() as $property) {
-            $attr = $property->getAttributes(BelongsToMany::class)[0] ?? null;
+            $attr = $property->getAttributes(OwnedByMany::class)[0] ?? null;
             if (!$attr) continue;
 
-            /** @var BelongsToMany $instance */
+            /** @var OwnedByMany $instance */
             $instance = $attr->newInstance();
 
             $relatedClass = $instance->related;

@@ -8,7 +8,7 @@ use InvalidArgumentException;
 use Strux\Component\ORM\Model;
 use Strux\Support\Collection;
 
-class HasMany extends Relation
+class OwnsMany extends Relation
 {
     protected string $foreignKey;
     protected string $localKey;
