@@ -72,7 +72,7 @@ trait HasQueryBuilder
         return new Expression($expression);
     }
 
-    public function select(array|string $columns = ['*']): static
+    protected function select(array|string $columns = ['*']): static
     {
         $builder = $this->_getQueryBuilderInstance();
         $builder->_queryAction = 'SELECT';
@@ -84,7 +84,7 @@ trait HasQueryBuilder
         return $builder;
     }
 
-    public function selectRaw(string $expression, array $bindings = []): static
+    protected function selectRaw(string $expression, array $bindings = []): static
     {
         $builder = $this->_getQueryBuilderInstance();
         $builder->_selects[] = ['sql' => new Expression($expression), 'bindings' => $bindings];
@@ -94,14 +94,14 @@ trait HasQueryBuilder
     /**
      * Set the table which the query is targeting.
      */
-    public function from(string $table): static
+    protected function from(string $table): static
     {
         $builder = $this->_getQueryBuilderInstance();
         $builder->_from = $table;
         return $builder;
     }
 
-    public function distinct(): static
+    protected function distinct(): static
     {
         $builder = $this->_getQueryBuilderInstance();
         $builder->_distinct = true;
@@ -110,7 +110,7 @@ trait HasQueryBuilder
 
     // --- Where Clauses ---
 
-    public function where(array|string|Closure $column, mixed $operator = null, mixed $value = null, string $boolean = 'AND'): static
+    protected function where(array|string|Closure $column, mixed $operator = null, mixed $value = null, string $boolean = 'AND'): static
     {
         $builder = $this->_getQueryBuilderInstance();
 
@@ -171,22 +171,22 @@ trait HasQueryBuilder
         return $this->whereRaw("{$column} {$operator} ({$sql})", $bindings, $boolean);
     }
 
-    public function orWhere(string|Closure $column, mixed $operator = null, mixed $value = null): static
+    protected function orWhere(string|Closure $column, mixed $operator = null, mixed $value = null): static
     {
         return $this->where($column, $operator, $value, 'OR');
     }
 
-    public function whereNot(Closure $callback): static
+    protected function whereNot(Closure $callback): static
     {
         return $this->where($callback, null, null, 'AND NOT');
     }
 
-    public function orWhereNot(Closure $callback): static
+    protected function orWhereNot(Closure $callback): static
     {
         return $this->where($callback, null, null, 'OR NOT');
     }
 
-    public function whereRaw(string $sql, array $bindings = [], string $boolean = 'AND'): static
+    protected function whereRaw(string $sql, array $bindings = [], string $boolean = 'AND'): static
     {
         $builder = $this->_getQueryBuilderInstance();
         $builder->_wheres[] = [
@@ -198,12 +198,12 @@ trait HasQueryBuilder
         return $builder;
     }
 
-    public function orWhereRaw(string $sql, array $bindings = []): static
+    protected function orWhereRaw(string $sql, array $bindings = []): static
     {
         return $this->whereRaw($sql, $bindings, 'OR');
     }
 
-    public function whereIn(string $column, array|Closure $values, string $boolean = 'AND', bool $not = false): static
+    protected function whereIn(string $column, array|Closure $values, string $boolean = 'AND', bool $not = false): static
     {
         $builder = $this->_getQueryBuilderInstance();
 
@@ -226,14 +226,14 @@ trait HasQueryBuilder
         return $builder;
     }
 
-    public function whereNotIn(string $column, array $values, string $boolean = 'AND'): static
+    protected function whereNotIn(string $column, array $values, string $boolean = 'AND'): static
     {
         return $this->whereIn($column, $values, $boolean, true);
     }
 
     // --- Advanced Where Helpers ---
 
-    public function whereAny(array $columns, string $operator, mixed $value): static
+    protected function whereAny(array $columns, string $operator, mixed $value): static
     {
         return $this->where(function ($query) use ($columns, $operator, $value) {
             foreach ($columns as $column) {
@@ -242,7 +242,7 @@ trait HasQueryBuilder
         });
     }
 
-    public function whereAll(array $columns, string $operator, mixed $value): static
+    protected function whereAll(array $columns, string $operator, mixed $value): static
     {
         return $this->where(function ($query) use ($columns, $operator, $value) {
             foreach ($columns as $column) {
@@ -251,7 +251,7 @@ trait HasQueryBuilder
         });
     }
 
-    public function whereLike(string $column, string $value, bool $caseSensitive = false, string $boolean = 'AND', bool $not = false): static
+    protected function whereLike(string $column, string $value, bool $caseSensitive = false, string $boolean = 'AND', bool $not = false): static
     {
         $operator = $not ? 'NOT LIKE' : 'LIKE';
 
@@ -262,17 +262,17 @@ trait HasQueryBuilder
         return $this->where($column, $operator, $value, $boolean);
     }
 
-    public function orWhereLike(string $column, string $value, bool $caseSensitive = false): static
+    protected function orWhereLike(string $column, string $value, bool $caseSensitive = false): static
     {
         return $this->whereLike($column, $value, $caseSensitive, 'OR');
     }
 
-    public function whereNotLike(string $column, string $value, bool $caseSensitive = false): static
+    protected function whereNotLike(string $column, string $value, bool $caseSensitive = false): static
     {
         return $this->whereLike($column, $value, $caseSensitive, 'AND', true);
     }
 
-    public function orWhereNotLike(string $column, string $value, bool $caseSensitive = false): static
+    protected function orWhereNotLike(string $column, string $value, bool $caseSensitive = false): static
     {
         return $this->whereLike($column, $value, $caseSensitive, 'OR', true);
     }
@@ -288,19 +288,19 @@ trait HasQueryBuilder
         return $this;
     }
 
-    public function join(string $table, string $first, mixed $operatorOrSecond, mixed $second = null): static
+    protected function join(string $table, string $first, mixed $operatorOrSecond, mixed $second = null): static
     {
         $builder = $this->_getQueryBuilderInstance();
         return $builder->_addJoin('INNER', $table, $first, $operatorOrSecond, $second);
     }
 
-    public function leftJoin(string $table, string $first, ?string $operatorOrSecond = null, ?string $second = null): static
+    protected function leftJoin(string $table, string $first, ?string $operatorOrSecond = null, ?string $second = null): static
     {
         $builder = $this->_getQueryBuilderInstance();
         return $builder->_addJoin('LEFT', $table, $first, $operatorOrSecond, $second);
     }
 
-    public function rightJoin(string $table, string $first, ?string $operatorOrSecond = null, ?string $second = null): static
+    protected function rightJoin(string $table, string $first, ?string $operatorOrSecond = null, ?string $second = null): static
     {
         $builder = $this->_getQueryBuilderInstance();
         return $builder->_addJoin('RIGHT', $table, $first, $operatorOrSecond, $second);
@@ -308,21 +308,21 @@ trait HasQueryBuilder
 
     // --- Ordering & Grouping ---
 
-    public function orderBy(string $column, string $direction = 'ASC'): static
+    protected function orderBy(string $column, string $direction = 'ASC'): static
     {
         $builder = $this->_getQueryBuilderInstance();
         $builder->_orders[] = compact('column', 'direction');
         return $builder;
     }
 
-    public function groupBy(string ...$columns): static
+    protected function groupBy(string ...$columns): static
     {
         $builder = $this->_getQueryBuilderInstance();
         $builder->_groups = array_merge($builder->_groups, $columns);
         return $builder;
     }
 
-    public function having(string $column, string $operator, mixed $value, string $boolean = 'AND'): static
+    protected function having(string $column, string $operator, mixed $value, string $boolean = 'AND'): static
     {
         $builder = $this->_getQueryBuilderInstance();
         $builder->_havings[] = [
@@ -336,14 +336,14 @@ trait HasQueryBuilder
         return $builder;
     }
 
-    public function limit(int $limit): static
+    protected function limit(int $limit): static
     {
         $builder = $this->_getQueryBuilderInstance();
         $builder->_limit = $limit;
         return $builder;
     }
 
-    public function offset(int $offset): static
+    protected function offset(int $offset): static
     {
         $builder = $this->_getQueryBuilderInstance();
         $builder->_offset = $offset;
@@ -352,7 +352,7 @@ trait HasQueryBuilder
 
     // --- Retrieval ---
 
-    public function exists(): bool
+    protected function exists(): bool
     {
         $checkBuilder = static::query();
         $this->_copyQueryState($this->_getQueryBuilderInstance(), $checkBuilder);
@@ -370,7 +370,7 @@ trait HasQueryBuilder
         return (bool) $stmt->fetchColumn();
     }
 
-    public function get(): Collection
+    protected function get(): Collection
     {
         $builder = $this->_getQueryBuilderInstance();
         $sql = $builder->_buildSelectSQL();
@@ -391,21 +391,21 @@ trait HasQueryBuilder
         return new Collection($models);
     }
 
-    public function all(): Collection
+    protected function all(): Collection
     {
         return $this->get();
     }
 
-    public function first(): ?static
+    protected function first(): ?static
     {
         $this->limit(1);
         $collection = $this->get();
         return $collection->first();
     }
 
-    public function last(): ?static
+    protected function last(): ?static
     {
-        $this->orderBy($this->getPrimaryKey(), 'desc')->limit(1);
+        $this->orderBy($this->getPrimaryKey(), 'DESC')->limit(1);
         return $this->get()->first();
     }
 
@@ -427,7 +427,7 @@ trait HasQueryBuilder
         return $result;
     }
 
-    public function latest(?string $column = null): static
+    protected function latest(?string $column = null): static
     {
         $column = $column ?? $this->getCreatedAtColumn();
         if (!$column)
@@ -435,7 +435,7 @@ trait HasQueryBuilder
         return $this->orderBy($column, 'DESC');
     }
 
-    public function oldest(?string $column = null): static
+    protected function oldest(?string $column = null): static
     {
         $column = $column ?? $this->getCreatedAtColumn();
         if (!$column)
@@ -445,7 +445,7 @@ trait HasQueryBuilder
 
     // --- Bulk Operations ---
 
-    public function insert(array $values): bool
+    protected function insert(array $values): bool
     {
         if (empty($values))
             return true;
@@ -483,7 +483,7 @@ trait HasQueryBuilder
         }
     }
 
-    public function upsert(array $values, array|string $uniqueBy, ?array $update = null): int
+    protected function upsert(array $values, array|string $uniqueBy, ?array $update = null): int
     {
         if (empty($values))
             return 0;
@@ -559,27 +559,27 @@ trait HasQueryBuilder
         return $stmt->fetchColumn();
     }
 
-    public function count(string $column = '*'): int
+    protected function count(string $column = '*'): int
     {
         return (int) $this->_aggregate('COUNT', $column);
     }
 
-    public function max(string $column): mixed
+    protected function max(string $column): mixed
     {
         return $this->_aggregate('MAX', $column);
     }
 
-    public function min(string $column): mixed
+    protected function min(string $column): mixed
     {
         return $this->_aggregate('MIN', $column);
     }
 
-    public function avg(string $column): mixed
+    protected function avg(string $column): mixed
     {
         return $this->_aggregate('AVG', $column);
     }
 
-    public function sum(string $column): mixed
+    protected function sum(string $column): mixed
     {
         return $this->_aggregate('SUM', $column);
     }
@@ -683,7 +683,7 @@ trait HasQueryBuilder
 
     // --- Pagination ---
 
-    public function paginate(
+    protected function paginate(
         int $perPage = 15,
         array $columns = ['*'],
         string $pageName = 'page',
@@ -728,12 +728,12 @@ trait HasQueryBuilder
 
     // --- Debugging ---
 
-    public function toSql(): string
+    protected function toSql(): string
     {
         return $this->_getQueryBuilderInstance()->_buildSelectSQL();
     }
 
-    public function toRawSql(): string
+    protected function toRawSql(): string
     {
         $sql = $this->toSql();
         $bindings = $this->_compiledBindings;

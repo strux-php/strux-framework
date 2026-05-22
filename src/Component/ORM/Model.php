@@ -103,6 +103,14 @@ abstract class Model
     }
 
     /**
+     * Handle dynamic static method calls.
+     */
+    public static function __callStatic(string $method, array $parameters)
+    {
+        return static::query()->$method(...$parameters);
+    }
+
+    /**
      * Update a record by its primary key.
      * * @param mixed $id The primary key value
      * @param array $attributes The attributes to update

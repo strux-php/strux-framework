@@ -38,6 +38,10 @@ trait HasRelationships
      */
     public function __call(string $method, array $arguments)
     {
+        if (method_exists($this, $method)) {
+            return $this->{$method}(...$arguments);
+        }
+
         if (property_exists($this, $method)) {
             $reflection = new ReflectionClass($this);
             $property = $reflection->getProperty($method);
@@ -59,7 +63,7 @@ trait HasRelationships
         throw new RuntimeException("Method '$method' does not exist on " . static::class);
     }
 
-    public function with(mixed ...$relations): static
+    protected function with(mixed ...$relations): static
     {
         $builder = $this->_getQueryBuilderInstance();
         foreach ($relations as $relation) {
