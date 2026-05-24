@@ -29,7 +29,7 @@ use function array_merge;
 trait HasRelationships
 {
     private array $_relations = [];
-    private array $_with = [];
+    private array $_includes = [];
 
     /**
      * Magic method to handle dynamic relationship method calls.
@@ -63,18 +63,18 @@ trait HasRelationships
         throw new RuntimeException("Method '$method' does not exist on " . static::class);
     }
 
-    protected function with(mixed ...$relations): static
+    protected function include(mixed ...$relations): static
     {
         $builder = $this->_getQueryBuilderInstance();
         foreach ($relations as $relation) {
             if (is_string($relation)) {
-                $builder->_with[$relation] = null;
+                $builder->_includes[$relation] = null;
             } elseif (is_array($relation)) {
                 foreach ($relation as $key => $value) {
                     if (is_int($key)) {
-                        $builder->_with[$value] = null;
+                        $builder->_includes[$value] = null;
                     } else {
-                        $builder->_with[$key] = $value;
+                        $builder->_includes[$key] = $value;
                     }
                 }
             }

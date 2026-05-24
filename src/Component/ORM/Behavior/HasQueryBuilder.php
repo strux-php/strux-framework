@@ -26,8 +26,8 @@ trait HasQueryBuilder
     private array $_groups = [];
     private array $_havings = [];
     private array $_orders = [];
-    private ?int $_limit = null;
-    private ?int $_offset = null;
+    private ?int $_take = null;
+    private ?int $_skip = null;
     private array $_compiledBindings = [];
     private bool $_isQueryBuilderInstance = false;
 
@@ -56,8 +56,8 @@ trait HasQueryBuilder
         $this->_groups = [];
         $this->_havings = [];
         $this->_orders = [];
-        $this->_limit = null;
-        $this->_offset = null;
+        $this->_take = null;
+        $this->_skip = null;
         $this->_compiledBindings = [];
         $this->_with = [];
     }
@@ -336,17 +336,17 @@ trait HasQueryBuilder
         return $builder;
     }
 
-    protected function limit(int $limit): static
+    protected function take(int $take): static
     {
         $builder = $this->_getQueryBuilderInstance();
-        $builder->_limit = $limit;
+        $builder->_take = $take;
         return $builder;
     }
 
-    protected function offset(int $offset): static
+    protected function skip(int $skip): static
     {
         $builder = $this->_getQueryBuilderInstance();
-        $builder->_offset = $offset;
+        $builder->_skip = $skip;
         return $builder;
     }
 
@@ -357,7 +357,7 @@ trait HasQueryBuilder
         $checkBuilder = static::query();
         $this->_copyQueryState($this->_getQueryBuilderInstance(), $checkBuilder);
 
-        $checkBuilder->selectRaw('1')->limit(1);
+        $checkBuilder->selectRaw('1')->take(1);
 
         $sql = $checkBuilder->_buildSelectSQL();
 
@@ -384,8 +384,8 @@ trait HasQueryBuilder
         $results = $stmt->fetchAll();
         $models = array_map(fn($row) => static::fromStorage($row), $results ?: []);
 
-        if (!empty($models) && !empty($builder->_with)) {
-            $this->eagerLoadRelations($models, $builder->_with);
+        if (!empty($models) && !empty($builder->_includes)) {
+            $this->eagerLoadRelations($models, $builder->_includes);
         }
 
         return new Collection($models);
@@ -398,29 +398,31 @@ trait HasQueryBuilder
 
     protected function first(): ?static
     {
-        $this->limit(1);
+        $this->take(1);
         $collection = $this->get();
         return $collection->first();
     }
 
     protected function last(): ?static
     {
-        $this->orderBy($this->getPrimaryKey(), 'DESC')->limit(1);
+        $this->orderBy($this->getPrimaryKey(), 'DESC')->take(1);
         return $this->get()->first();
     }
 
-    public static function find(mixed $id, array $with = []): ?static
+    protected function find(mixed $id, mixed $includes = []): ?static
     {
-        $instance = new static();
-        $query = static::query()->where($instance->getPrimaryKey(), $id);
-        if ($with)
-            $query->with(...$with);
-        return $query->first();
+        $builder = $this->_getQueryBuilderInstance();
+        $builder->where($this->getPrimaryKey(), $id);
+        if ($includes) {
+            $includes = is_array($includes) ? $includes : [$includes];
+            $builder->include(...$includes);
+        }
+        return $builder->first();
     }
 
-    public static function findOrFail(mixed $id, array $with = []): static
+    protected function findOrFail(mixed $id, array $includes = []): static
     {
-        $result = static::find($id, $with);
+        $result = $this->find($id, $includes);
         if (!$result) {
             throw new RuntimeException("Model not found with ID: " . (is_array($id) ? json_encode($id) : $id));
         }
@@ -548,8 +550,8 @@ trait HasQueryBuilder
         $this->_copyQueryState($builder, $aggregateBuilder);
 
         $aggregateBuilder->_orders = [];
-        $aggregateBuilder->_limit = null;
-        $aggregateBuilder->_offset = null;
+        $aggregateBuilder->_take = null;
+        $aggregateBuilder->_skip = null;
 
         $aggregateBuilder->selectRaw("{$function}({$column}) as aggregate");
 
@@ -638,10 +640,10 @@ trait HasQueryBuilder
             $sql .= " ORDER BY " . implode(', ', array_map(fn($o) => "{$o['column']} {$o['direction']}", $this->_orders));
         }
 
-        if ($this->_limit !== null)
-            $sql .= " LIMIT $this->_limit";
-        if ($this->_offset !== null)
-            $sql .= " OFFSET $this->_offset";
+        if ($this->_take !== null)
+            $sql .= " LIMIT $this->_take";
+        if ($this->_skip !== null)
+            $sql .= " OFFSET $this->_skip";
 
         return $sql;
     }
@@ -703,8 +705,8 @@ trait HasQueryBuilder
         $itemBuilder = static::query();
         $this->_copyQueryState($this, $itemBuilder);
 
-        $itemBuilder->limit($perPage);
-        $itemBuilder->offset(($page - 1) * $perPage);
+        $itemBuilder->take($perPage);
+        $itemBuilder->skip(($page - 1) * $perPage);
         if ($columns !== ['*'])
             $itemBuilder->select($columns);
 
@@ -723,7 +725,7 @@ trait HasQueryBuilder
         $to->_orders = $from->_orders;
         $to->_selects = $from->_selects;
         $to->_from = $from->_from;
-        $to->_with = $from->_with;
+        $to->_includes = $from->_includes;
     }
 
     // --- Debugging ---

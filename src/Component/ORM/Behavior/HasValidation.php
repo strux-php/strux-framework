@@ -11,7 +11,7 @@ use Strux\Component\Exceptions\ValidationException;
 
 trait HasValidation
 {
-    protected array $_errors = [];
+    private array $_errors = [];
 
     /**
      * Define validation rules for the model.
@@ -35,6 +35,41 @@ trait HasValidation
                     $rules[$name] = [];
                 }
                 $rules[$name] = array_merge($rules[$name], $instance->rules);
+            }
+        }
+
+        // Automatically ignore current record for unique rules during updates
+        if (method_exists($this, 'exists') && $this->exists()) {
+            $pkName = method_exists($this, 'getPrimaryKey') ? $this->getPrimaryKey() : 'id';
+            $pkValue = $this->{$pkName} ?? null;
+            
+            if ($pkValue !== null) {
+                foreach ($rules as $field => $fieldRules) {
+                    $newFieldRules = [];
+                    foreach ($fieldRules as $key => $rule) {
+                        $ruleStr = is_string($key) ? $key : $rule;
+                        
+                        // Match unique[table, column] with exactly 2 parameters
+                        if (is_string($ruleStr) && preg_match('/^unique\[\s*([^,]+)\s*,\s*([^,\]]+)\s*\]$/i', $ruleStr, $m)) {
+                            $table = trim($m[1]);
+                            $col = trim($m[2]);
+                            $newRuleStr = "unique[{$table}, {$col}, {$pkValue}, {$pkName}]";
+                            
+                            if (is_string($key)) {
+                                $newFieldRules[$newRuleStr] = $rule; // Preserve custom error message
+                            } else {
+                                $newFieldRules[] = $newRuleStr;
+                            }
+                        } else {
+                            if (is_string($key)) {
+                                $newFieldRules[$key] = $rule;
+                            } else {
+                                $newFieldRules[] = $rule;
+                            }
+                        }
+                    }
+                    $rules[$field] = $newFieldRules;
+                }
             }
         }
 

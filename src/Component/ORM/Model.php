@@ -77,6 +77,24 @@ abstract class Model
         }
     }
 
+    // --- State Accessors ---
+    
+    /**
+     * Determine if the model exists in the database.
+     */
+    public function exists(): bool
+    {
+        return $this->_exists;
+    }
+
+    /**
+     * Determine if the model is a new, unsaved record.
+     */
+    public function isNew(): bool
+    {
+        return !$this->_exists;
+    }
+
     // --- Lifecycle Hooks ---
     protected function beforeSave(): void {}
     protected function afterSave(): void {}

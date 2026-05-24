@@ -15,8 +15,8 @@ final class Paginator
     public int $lastPage;
     public ?int $from;
     public ?int $to;
-    public string $path; // base URL (without query string)
-    public array $query; // preserved query params
+    public string $path;
+    public array $query;
 
     public function __construct(Collection $items, int $total, int $perPage, int $currentPage, string $path = '/', array $query = [])
     {
@@ -24,7 +24,7 @@ final class Paginator
         $this->total = $total;
         $this->perPage = max(1, $perPage);
         $this->currentPage = max(1, $currentPage);
-        $this->lastPage = (int)ceil($total / $this->perPage);
+        $this->lastPage = (int) ceil($total / $this->perPage);
         $this->from = $total === 0 ? null : (($this->currentPage - 1) * $this->perPage) + 1;
         $this->to = $total === 0 ? null : min($this->currentPage * $this->perPage, $total);
         $this->path = $path;

@@ -27,7 +27,7 @@ class DatabaseUserProvider implements UserProviderInterface
     {
         /* @var Model $modelInstance */
         $modelInstance = $this->model;
-        return $modelInstance::find($identifier, with: [
+        return $modelInstance::find($identifier, includes: [
             'roles', 'roles.permissions'
         ]);
     }
@@ -42,8 +42,8 @@ class DatabaseUserProvider implements UserProviderInterface
         foreach ($credentials as $key => $value) {
             if (!str_contains($key, 'password')) {
                 $query->where($key, $value)
-                    ->with('roles')
-                    ->with('roles.permissions');
+                    ->include('roles')
+                    ->include('roles.permissions');
             }
         }
 
