@@ -13,7 +13,7 @@ use Strux\Component\Exceptions\DatabaseException;
 
 class Database
 {
-    protected ?PDO $connection = null;
+    protected array $connections = ['read' => null, 'write' => null];
     protected Config $config;
     protected ?LoggerInterface $logger;
 
@@ -31,25 +31,41 @@ class Database
         $this->config = $config;
         $this->logger = $logger;
 
-        $this->establishConnection();
+        $this->establishConnection('write');
     }
 
     /**
      * Establishes the database connection based on configuration.
      * @throws DatabaseException
      */
-    protected function establishConnection(): void
+    protected function establishConnection(string $type = 'write'): void
     {
-        if ($this->connection !== null) {
+        if (isset($this->connections[$type]) && $this->connections[$type] !== null) {
             return;
         }
 
         try {
             $defaultDriver = $this->config->get('database.default', 'sqlite');
-            $connectionConfig = $this->config->get("database.connections.{$defaultDriver}");
+            $baseConfig = $this->config->get("database.connections.{$defaultDriver}");
 
-            if (empty($connectionConfig)) {
+            if (empty($baseConfig)) {
                 throw new InvalidArgumentException("Database configuration for default driver '{$defaultDriver}' not found.");
+            }
+
+            $hasReadWrite = isset($baseConfig['read']) || isset($baseConfig['write']);
+
+            if (!$hasReadWrite && $type === 'read' && isset($this->connections['write'])) {
+                $this->connections['read'] = $this->connections['write'];
+                return;
+            }
+            if (!$hasReadWrite && $type === 'write' && isset($this->connections['read'])) {
+                $this->connections['write'] = $this->connections['read'];
+                return;
+            }
+
+            $connectionConfig = $baseConfig;
+            if ($hasReadWrite && isset($baseConfig[$type]) && is_array($baseConfig[$type])) {
+                $connectionConfig = array_merge($baseConfig, $baseConfig[$type]);
             }
 
             $driver = $connectionConfig['driver'] ?? $defaultDriver;
@@ -69,33 +85,32 @@ class Database
             $password = $connectionConfig['password'] ?? null;
 
             $this->logger?->info("Attempting to connect to database.", [
+                'type' => $type,
                 'driver' => $driver, 
                 'dsn_preview' => preg_replace('/password=[^;]*/i', 'password=***', $dsn)
             ]);
 
-            $this->connection = new PDO($dsn, $username, $password, $pdoOptions);
+            $pdo = new PDO($dsn, $username, $password, $pdoOptions);
 
             if ($driver === 'sqlite') {
                 if ($connectionConfig['foreign_key_constraints'] ?? false) {
-                    $this->connection->exec('PRAGMA foreign_keys = ON;');
-                    $this->logger?->info("SQLite: PRAGMA foreign_keys = ON executed.");
+                    $pdo->exec('PRAGMA foreign_keys = ON;');
                 }
             } elseif ($driver === 'mysql' || $driver === 'mariadb') {
                 if (!empty($connectionConfig['charset'])) {
-                    $this->connection->exec("SET NAMES '{$connectionConfig['charset']}'" .
+                    $pdo->exec("SET NAMES '{$connectionConfig['charset']}'" .
                         (!empty($connectionConfig['collation']) ? " COLLATE '{$connectionConfig['collation']}'" : ''));
-                    $this->logger?->info("MySQL/MariaDB: SET NAMES executed.", ['charset' => $connectionConfig['charset'], 'collation' => $connectionConfig['collation'] ?? null]);
                 }
             } elseif ($driver === 'pgsql') {
                 if (!empty($connectionConfig['schema'])) {
-                    $this->connection->exec("SET search_path TO '{$connectionConfig['schema']}'");
-                    $this->logger?->info("PostgreSQL: search_path set.", ['schema' => $connectionConfig['schema']]);
+                    $pdo->exec("SET search_path TO '{$connectionConfig['schema']}'");
                 }
             }
 
-            $this->logger?->info("Database connection established successfully.", ['driver' => $driver]);
+            $this->connections[$type] = $pdo;
+            $this->logger?->info("Database connection established successfully.", ['type' => $type, 'driver' => $driver]);
         } catch (PDOException $e) {
-            $this->logger?->critical("Database connection failed.", ['driver' => $driver ?? 'unknown', 'error' => $e->getMessage()]);
+            $this->logger?->critical("Database connection failed.", ['type' => $type, 'driver' => $driver ?? 'unknown', 'error' => $e->getMessage()]);
             throw new DatabaseException('Database connection failed: ' . $e->getMessage(), (int)$e->getCode(), $e);
         } catch (InvalidArgumentException $e) {
             $this->logger?->error("Database configuration error.", ['error' => $e->getMessage()]);
@@ -197,23 +212,20 @@ class Database
     }
 
 
-    /**
-     * @throws DatabaseException
-     */
-    public function getConnection(): PDO
+    public function getConnection(string $type = 'write'): PDO
     {
-        if ($this->connection === null) {
-            $this->logger?->warning("PDO connection was null, attempting to re-establish.");
-            $this->establishConnection();
+        if (!isset($this->connections[$type]) || $this->connections[$type] === null) {
+            $this->logger?->warning("PDO connection ($type) was null, attempting to establish.");
+            $this->establishConnection($type);
         }
-        return $this->connection;
+        return $this->connections[$type];
     }
 
-    public function closeConnection(): void
+    public function closeConnection(string $type = 'write'): void
     {
-        if ($this->connection !== null) {
-            $this->logger?->info("Closing database connection.");
-            $this->connection = null;
+        if (isset($this->connections[$type]) && $this->connections[$type] !== null) {
+            $this->logger?->info("Closing database connection ($type).");
+            $this->connections[$type] = null;
         }
     }
 

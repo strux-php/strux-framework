@@ -575,28 +575,12 @@ trait HasQueryBuilder
         }
 
         $grammar = $builder->getDialect();
-        $columnsStr = implode(', ', array_map([$grammar, 'quote'], $columns));
-        $placeholdersStr = implode(', ', $placeholders);
-        $tableName = $grammar->quoteTable($table);
-
-        $sql = "INSERT INTO {$tableName} ({$columnsStr}) VALUES {$placeholdersStr}";
-
+        
         if (empty($update)) {
             $update = array_filter($columns, fn($col) => !in_array($col, (array) $uniqueBy));
         }
 
-        if (!empty($update)) {
-            $updateClauses = [];
-            foreach ($update as $key => $value) {
-                if (is_int($key)) {
-                    $updateClauses[] = "`{$value}` = VALUES(`{$value}`)";
-                } else {
-                    $updateClauses[] = "`{$key}` = ?";
-                    throw new RuntimeException("Custom upsert binding values not currently supported. Pass column names as values.");
-                }
-            }
-            $sql .= " ON DUPLICATE KEY UPDATE " . implode(', ', $updateClauses);
-        }
+        $sql = $grammar->buildUpsertQuery($table, $columns, $placeholders, (array) $uniqueBy, $update);
 
         try {
             $stmt = $builder->_execute($sql, $bindings);
@@ -793,6 +777,93 @@ trait HasQueryBuilder
         $to->_includes = $from->_includes;
         $to->_stashFor = $from->_stashFor;
         $to->_stashKey = $from->_stashKey;
+    }
+
+    // --- Data Processing (Batching & Streaming) ---
+
+    protected function batch(int $count, callable $callback): bool
+    {
+        $page = 1;
+
+        do {
+            $clone = static::query();
+            $this->_copyQueryState($this, $clone);
+            
+            $results = $clone->take($count)->skip(($page - 1) * $count)->get();
+
+            $countResults = $results->count();
+
+            if ($countResults == 0) {
+                break;
+            }
+
+            if ($callback($results, $page) === false) {
+                return false;
+            }
+
+            $page++;
+        } while ($countResults == $count);
+
+        return true;
+    }
+
+    protected function batchByPrimaryKey(int $count, callable $callback, ?string $column = null): bool
+    {
+        $column = $column ?? $this->getPrimaryKey();
+        $lastId = null;
+        $page = 1;
+
+        do {
+            $clone = static::query();
+            $this->_copyQueryState($this, $clone);
+
+            $clone->take($count)->orderBy($column, 'ASC');
+
+            if ($lastId !== null) {
+                $clone->where($column, '>', $lastId);
+            }
+
+            $results = $clone->get();
+
+            $countResults = $results->count();
+
+            if ($countResults == 0) {
+                break;
+            }
+
+            if ($callback($results, $page) === false) {
+                return false;
+            }
+
+            $lastId = $results->last()->{$column};
+            $page++;
+        } while ($countResults == $count);
+
+        return true;
+    }
+
+    /**
+     * @return \Generator<static>
+     */
+    protected function stream(): \Generator
+    {
+        $builder = $this->_getQueryBuilderInstance();
+        $sql = $builder->_buildSelectSQL();
+
+        try {
+            $stmt = $builder->_execute($sql, $builder->_compiledBindings);
+            while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+                $model = static::fromStorage($row);
+                
+                if (!empty($builder->_includes)) {
+                    $this->eagerLoadRelations([$model], $builder->_includes);
+                }
+
+                yield $model;
+            }
+        } catch (\Throwable $e) {
+            throw new RuntimeException("Stream Error: " . $e->getMessage() . " [SQL: $sql]", 0, $e);
+        }
     }
 
     // --- Debugging ---

@@ -96,9 +96,40 @@ class SqlServerDialect extends SqlDialect
         return $sql;
     }
 
-    public function buildUpsertQuery(string $table, array $columns, array $update): string
+    public function buildUpsertQuery(string $table, array $columns, array $placeholders, array $uniqueBy, array $update): string
     {
-        $sql = $this->buildInsertQuery($table, $columns, ['']);
+        $columnsStr = implode(', ', array_map([$this, 'quote'], $columns));
+        $placeholdersStr = implode(', ', $placeholders);
+        $tableName = $this->quoteTable($table);
+        
+        $sql = "MERGE INTO {$tableName} WITH (HOLDLOCK) AS target ";
+        $sql .= "USING (VALUES {$placeholdersStr}) AS source ({$columnsStr}) ";
+        
+        $onClauses = [];
+        foreach ($uniqueBy as $col) {
+            $qCol = $this->quote($col);
+            $onClauses[] = "target.{$qCol} = source.{$qCol}";
+        }
+        $sql .= "ON " . implode(' AND ', $onClauses) . " ";
+        
+        if (!empty($update)) {
+            $sql .= "WHEN MATCHED THEN UPDATE SET ";
+            $updateClauses = [];
+            foreach ($update as $key => $value) {
+                if (is_int($key)) {
+                    $qCol = $this->quote($value);
+                    $updateClauses[] = "{$qCol} = source.{$qCol}";
+                } else {
+                    $updateClauses[] = $this->quote($key) . " = ?";
+                }
+            }
+            $sql .= implode(', ', $updateClauses) . " ";
+        }
+        
+        $sql .= "WHEN NOT MATCHED THEN INSERT ({$columnsStr}) VALUES (";
+        $sourceCols = array_map(fn($c) => "source." . $this->quote($c), $columns);
+        $sql .= implode(', ', $sourceCols) . ");";
+        
         return $sql;
     }
 

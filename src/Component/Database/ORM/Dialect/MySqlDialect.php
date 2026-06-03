@@ -27,9 +27,26 @@ class MySqlDialect extends SqlDialect
         return '`' . str_replace('`', '``', $value) . '`';
     }
 
-    public function buildUpsertQuery(string $table, array $columns, array $update): string
+    public function buildUpsertQuery(string $table, array $columns, array $placeholders, array $uniqueBy, array $update): string
     {
-        $sql = $this->buildInsertQuery($table, $columns, ['']);
+        $columnsStr = implode(', ', array_map([$this, 'quote'], $columns));
+        $placeholdersStr = implode(', ', $placeholders);
+        $tableName = $this->quoteTable($table);
+        $sql = "INSERT INTO {$tableName} ({$columnsStr}) VALUES {$placeholdersStr}";
+
+        if (!empty($update)) {
+            $updateClauses = [];
+            foreach ($update as $key => $value) {
+                if (is_int($key)) {
+                    $qCol = $this->quote($value);
+                    $updateClauses[] = "{$qCol} = VALUES({$qCol})";
+                } else {
+                    $updateClauses[] = $this->quote($key) . " = ?";
+                }
+            }
+            $sql .= " ON DUPLICATE KEY UPDATE " . implode(', ', $updateClauses);
+        }
+
         return $sql;
     }
 

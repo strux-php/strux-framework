@@ -38,6 +38,7 @@ abstract class Model
 
     private static array $globalScopes = [];
     private array $removedScopes = [];
+    private static int $transactionLevel = 0;
 
     /**
      * @throws ReflectionException
@@ -249,11 +250,27 @@ abstract class Model
      */
     private function _execute(string $sql, array $bindings = []): PDOStatement
     {
-        if ($this->db === null) {
+        $action = strtoupper(strtok(ltrim($sql), " \t\n\r\0\x0B("));
+        $type = in_array($action, ['SELECT', 'SHOW', 'DESCRIBE', 'EXPLAIN']) ? 'read' : 'write';
+        
+        if (self::$transactionLevel > 0) {
+            $type = 'write';
+        }
+
+        try {
+            /** @var \Strux\Component\Database\Database $dbManager */
+            $dbManager = ContainerBridge::resolve(\Strux\Component\Database\Database::class);
+            $pdo = $dbManager->getConnection($type);
+        } catch (\Throwable $e) {
+            $pdo = $this->db;
+        }
+
+        if ($pdo === null) {
             throw new DatabaseException("PDO connection not available in model " . static::class);
         }
+
         try {
-            $stmt = $this->db->prepare($sql);
+            $stmt = $pdo->prepare($sql);
             $stmt->execute($bindings);
             return $stmt;
         } catch (PDOException $e) {
@@ -486,12 +503,22 @@ abstract class Model
      */
     public static function beginTransaction(): void
     {
-        /* @var PDO $pdo */
-        $pdo = ContainerBridge::resolve(PDO::class);
-        if ($pdo->inTransaction()) {
-            return;
+        try {
+            /** @var \Strux\Component\Database\Database $dbManager */
+            $dbManager = ContainerBridge::resolve(\Strux\Component\Database\Database::class);
+            $pdo = $dbManager->getConnection('write');
+        } catch (\Throwable $e) {
+            /* @var PDO $pdo */
+            $pdo = ContainerBridge::resolve(PDO::class);
         }
-        $pdo->beginTransaction();
+        
+        if (self::$transactionLevel === 0) {
+            $pdo->beginTransaction();
+        } else {
+            $pdo->exec("SAVEPOINT trans_" . self::$transactionLevel);
+        }
+        
+        self::$transactionLevel++;
     }
 
     /**
@@ -499,10 +526,29 @@ abstract class Model
      */
     public static function commit(): void
     {
-        /* @var PDO $pdo */
-        $pdo = ContainerBridge::resolve(PDO::class);
-        if ($pdo->inTransaction()) {
+        try {
+            /** @var \Strux\Component\Database\Database $dbManager */
+            $dbManager = ContainerBridge::resolve(\Strux\Component\Database\Database::class);
+            $pdo = $dbManager->getConnection('write');
+        } catch (\Throwable $e) {
+            /* @var PDO $pdo */
+            $pdo = ContainerBridge::resolve(PDO::class);
+        }
+        
+        if (self::$transactionLevel === 0) {
+            return;
+        }
+        
+        self::$transactionLevel--;
+        
+        if (self::$transactionLevel === 0) {
             $pdo->commit();
+        } else {
+            try {
+                $pdo->exec("RELEASE SAVEPOINT trans_" . self::$transactionLevel);
+            } catch (\Exception $e) {
+                // Ignored
+            }
         }
     }
 
@@ -511,10 +557,25 @@ abstract class Model
      */
     public static function rollBack(): void
     {
-        /* @var PDO $pdo */
-        $pdo = ContainerBridge::resolve(PDO::class);
-        if ($pdo->inTransaction()) {
+        try {
+            /** @var \Strux\Component\Database\Database $dbManager */
+            $dbManager = ContainerBridge::resolve(\Strux\Component\Database\Database::class);
+            $pdo = $dbManager->getConnection('write');
+        } catch (\Throwable $e) {
+            /* @var PDO $pdo */
+            $pdo = ContainerBridge::resolve(PDO::class);
+        }
+        
+        if (self::$transactionLevel === 0) {
+            return;
+        }
+        
+        self::$transactionLevel--;
+        
+        if (self::$transactionLevel === 0) {
             $pdo->rollBack();
+        } else {
+            $pdo->exec("ROLLBACK TO SAVEPOINT trans_" . self::$transactionLevel);
         }
     }
 

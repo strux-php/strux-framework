@@ -146,7 +146,7 @@ abstract class SqlDialect
         return "DELETE FROM " . $this->quoteTable($table);
     }
 
-    abstract public function buildUpsertQuery(string $table, array $columns, array $update): string;
+    abstract public function buildUpsertQuery(string $table, array $columns, array $placeholders, array $uniqueBy, array $update): string;
 
     // --- Schema / DDL Methods ---
 

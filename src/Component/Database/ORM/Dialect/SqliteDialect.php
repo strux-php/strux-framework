@@ -6,11 +6,30 @@ namespace Strux\Component\Database\ORM\Dialect;
 
 class SqliteDialect extends SqlDialect
 {
-    public function buildUpsertQuery(string $table, array $columns, array $update): string
+    public function buildUpsertQuery(string $table, array $columns, array $placeholders, array $uniqueBy, array $update): string
     {
-        $sql = $this->buildInsertQuery($table, $columns, ['']); 
-        // SQLite uses ON CONFLICT DO UPDATE (since 3.24)
-        return $sql; 
+        $columnsStr = implode(', ', array_map([$this, 'quote'], $columns));
+        $placeholdersStr = implode(', ', $placeholders);
+        $tableName = $this->quoteTable($table);
+        $sql = "INSERT INTO {$tableName} ({$columnsStr}) VALUES {$placeholdersStr}";
+
+        if (!empty($update)) {
+            $uniqueCols = implode(', ', array_map([$this, 'quote'], $uniqueBy));
+            $sql .= " ON CONFLICT ({$uniqueCols}) DO UPDATE SET ";
+            
+            $updateClauses = [];
+            foreach ($update as $key => $value) {
+                if (is_int($key)) {
+                    $qCol = $this->quote($value);
+                    $updateClauses[] = "{$qCol} = excluded.{$qCol}";
+                } else {
+                    $updateClauses[] = $this->quote($key) . " = ?";
+                }
+            }
+            $sql .= implode(', ', $updateClauses);
+        }
+
+        return $sql;
     }
 
     public function buildCreateTableQuery(string $table, array $columns, array $options = []): string
