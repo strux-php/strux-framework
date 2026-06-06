@@ -13,8 +13,8 @@ use ReflectionException;
 use ReflectionNamedType;
 use ReflectionProperty;
 use RuntimeException;
-use Strux\Component\Database\Attributes\Column;
-use Strux\Component\Database\Attributes\SoftDelete;
+use Strux\Component\Database\Schema\Attributes\Column;
+use Strux\Component\Database\Schema\Attributes\SoftDelete;
 use Strux\Component\Database\ORM\Attributes\Hidden;
 use Strux\Component\Database\ORM\Attributes\RelationAttribute;
 use Strux\Component\Database\ORM\Attributes\Transform;
@@ -135,7 +135,8 @@ trait HasAttributes
             'float' => (float)$value,
             'string' => (string)$value,
             'array' => is_string($value) ? json_decode($value, true) : $value,
-            'DateTime', '\\DateTime' => is_string($value) ? new DateTime($value) : $value,
+            'DateTimeImmutable', '\\DateTimeImmutable' => is_string($value) ? new \DateTimeImmutable($value) : $value,
+            'DateTime', '\\DateTime', 'DateTimeInterface', '\\DateTimeInterface' => is_string($value) ? new \DateTime($value) : $value,
             default => $value
         };
     }
@@ -146,7 +147,7 @@ trait HasAttributes
 
         return match ($transformType) {
             DataType::ARRAY, DataType::JSON => json_encode($value),
-            DataType::DATETIME => $value instanceof DateTime ? $value->format('Y-m-d H:i:s') : $value,
+            DataType::DATETIME => $value instanceof \DateTimeInterface ? $value->format('Y-m-d H:i:s') : $value,
             DataType::ENCRYPTED => $value, // Implement encryption here in the future
             default => $value,
         };

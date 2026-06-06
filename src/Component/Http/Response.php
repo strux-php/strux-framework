@@ -132,9 +132,9 @@ class Response
 
     public function setLastModified($date): self
     {
-        if ($date instanceof DateTime) {
-            $date->setTimezone(new DateTimeZone('UTC'));
-            $this->setHeader('Last-Modified', $date->format('D, d M Y H:i:s') . ' GMT');
+        if ($date instanceof \DateTimeInterface) {
+            $utcDate = \DateTimeImmutable::createFromInterface($date)->setTimezone(new \DateTimeZone('UTC'));
+            $this->setHeader('Last-Modified', $utcDate->format('D, d M Y H:i:s') . ' GMT');
         } elseif (is_string($date)) {
             $this->setHeader('Last-Modified', $date);
         }

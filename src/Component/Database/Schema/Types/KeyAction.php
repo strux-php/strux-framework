@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Strux\Component\Database\Types;
+namespace Strux\Component\Database\Schema\Types;
 
 /**
  * Defines the valid actions for foreign key constraints.

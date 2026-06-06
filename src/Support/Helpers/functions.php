@@ -350,13 +350,13 @@ if (!function_exists('storage_url')) {
 }
 
 if (!function_exists('es_')) {
-    function es_(mixed $value = null): string|DateTime
+    function es_(mixed $value = null): string|\DateTimeInterface
     {
         if ($value instanceof SafeHtml) {
             return (string) $value;
         }
 
-        if ($value instanceof DateTime || $value instanceof DateTimeImmutable) {
+        if ($value instanceof \DateTimeInterface) {
             return $value->format('Y-m-d H:i:s');
         }
 

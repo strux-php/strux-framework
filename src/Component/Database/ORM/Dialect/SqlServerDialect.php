@@ -173,4 +173,43 @@ class SqlServerDialect extends SqlDialect
         $db->exec('EXEC sp_MSforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT all"');
         $db->exec('EXEC sp_MSforeachtable "DROP TABLE ?"');
     }
+
+    public function buildDropIndexQuery(string $table, string $indexName): string
+    {
+        return "DROP INDEX {$this->quote($indexName)} ON {$this->quoteTable($table)}";
+    }
+
+    public function translateType(string $type): string
+    {
+        $type = strtoupper($type);
+
+        if (str_starts_with($type, 'TINYINT(1)')) {
+            return 'BIT';
+        }
+
+        if ($type === 'DATETIME' || $type === 'TIMESTAMP') {
+            return 'DATETIME2';
+        }
+
+        if (str_starts_with($type, 'VARCHAR') || str_starts_with($type, 'CHAR')) {
+            return str_replace(['VARCHAR', 'CHAR'], ['NVARCHAR', 'NCHAR'], $type);
+        }
+
+        if ($type === 'TEXT' || $type === 'MEDIUMTEXT' || $type === 'LONGTEXT' || $type === 'TINYTEXT') {
+            return 'NVARCHAR(MAX)';
+        }
+
+        if ($type === 'BLOB') {
+            return 'VARBINARY(MAX)';
+        }
+
+        if ($type === 'JSON') {
+            return 'NVARCHAR(MAX)';
+        }
+
+        // Remove UNSIGNED
+        $type = str_replace(' UNSIGNED', '', $type);
+
+        return $type;
+    }
 }

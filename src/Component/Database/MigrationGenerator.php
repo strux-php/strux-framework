@@ -11,7 +11,7 @@ use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionException;
 use Strux\Component\Config\Config;
-use Strux\Component\Database\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Table;
 use Strux\Component\Database\Migration\Blueprint;
 use Strux\Component\Database\Migration\MigrationWriter;
 use Strux\Component\Database\Migration\ModelBuilder;
@@ -32,7 +32,7 @@ class MigrationGenerator
         $this->directories = $directories;
         
         $projectRoot = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 5);
-        $this->writer = new MigrationWriter($projectRoot);
+        $this->writer = new MigrationWriter($projectRoot, $this->db);
         
         $this->srcPath = rtrim($this->directories->get('app'), '/\\');
     }
@@ -83,7 +83,7 @@ class MigrationGenerator
                 $tableQueries = array_merge($tableQueries, $pivotSql);
             }
             
-            $uniqueSql = Blueprint::generateUniqueConstraints($modelClass);
+            $uniqueSql = Blueprint::generateIndexes($modelClass, $this->db);
             if (!empty($uniqueSql)) {
                 $existingIndexes = $this->getExistingIndexes($modelClass);
                 foreach ($uniqueSql as $indexName => $query) {

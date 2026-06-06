@@ -177,4 +177,27 @@ abstract class SqlDialect
      * Drop all tables in the database.
      */
     abstract public function dropAllTables(\PDO $db): void;
+
+    /**
+     * Build an ADD INDEX query.
+     */
+    public function buildAddIndexQuery(string $table, string $indexName, array $columns, bool $isUnique = false): string
+    {
+        $uniqueStr = $isUnique ? 'UNIQUE ' : '';
+        $cols = implode(', ', array_map([$this, 'quote'], $columns));
+        return "CREATE {$uniqueStr}INDEX {$this->quote($indexName)} ON {$this->quoteTable($table)} ($cols)";
+    }
+
+    /**
+     * Build a DROP INDEX query.
+     */
+    abstract public function buildDropIndexQuery(string $table, string $indexName): string;
+
+    /**
+     * Translate generic framework types to dialect-specific types.
+     */
+    public function translateType(string $type): string
+    {
+        return $type; // Default (MySQL-compatible)
+    }
 }

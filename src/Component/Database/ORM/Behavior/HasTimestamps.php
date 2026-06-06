@@ -6,7 +6,7 @@ namespace Strux\Component\Database\ORM\Behavior;
 
 use ReflectionClass;
 use ReflectionProperty;
-use Strux\Component\Database\Attributes\Column;
+use Strux\Component\Database\Schema\Attributes\Column;
 
 trait HasTimestamps
 {

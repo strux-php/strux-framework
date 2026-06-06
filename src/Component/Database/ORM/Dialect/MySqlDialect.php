@@ -100,4 +100,9 @@ class MySqlDialect extends SqlDialect
             throw $e;
         }
     }
+
+    public function buildDropIndexQuery(string $table, string $indexName): string
+    {
+        return "DROP INDEX " . $this->quote($indexName) . " ON " . $this->quoteTable($table);
+    }
 }

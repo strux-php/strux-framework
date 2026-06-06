@@ -76,4 +76,52 @@ class PostgresDialect extends SqlDialect
         $db->exec('GRANT ALL ON SCHEMA public TO public;');
         echo "Dropped all tables by recreating public schema.\n";
     }
+
+    public function buildDropIndexQuery(string $table, string $indexName): string
+    {
+        return "DROP INDEX {$this->quote($indexName)}";
+    }
+
+    public function translateType(string $type): string
+    {
+        $type = strtoupper($type);
+
+        // Map Booleans
+        if (str_starts_with($type, 'TINYINT(1)')) {
+            return 'BOOLEAN';
+        }
+
+        // Map Integers
+        if ($type === 'TINYINT' || $type === 'SMALLINT') {
+            return 'SMALLINT';
+        }
+        if ($type === 'MEDIUMINT' || $type === 'INT' || $type === 'INTEGER') {
+            return 'INTEGER';
+        }
+
+        // Map Decimals
+        if ($type === 'DOUBLE') {
+            return 'DOUBLE PRECISION';
+        }
+
+        // Map Texts
+        if ($type === 'MEDIUMTEXT' || $type === 'LONGTEXT' || $type === 'TINYTEXT') {
+            return 'TEXT';
+        }
+
+        // Map Dates
+        if ($type === 'DATETIME') {
+            return 'TIMESTAMP';
+        }
+
+        // Map Blobs
+        if ($type === 'BLOB') {
+            return 'BYTEA';
+        }
+
+        // Remove UNSIGNED as Postgres doesn't support it
+        $type = str_replace(' UNSIGNED', '', $type);
+
+        return $type;
+    }
 }

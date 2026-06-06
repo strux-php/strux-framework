@@ -221,7 +221,7 @@ PHP;
             return 'Strux\\Component\\Form\\Attributes\\BooleanField';
         }
 
-        if ($phpType === 'DateTime') {
+        if ($phpType === 'DateTime' || $phpType === 'DateTimeInterface' || $phpType === 'DateTimeImmutable') {
             return 'Strux\\Component\\Form\\Attributes\\DateTimeLocalField';
         }
 

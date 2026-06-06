@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Strux\Component\Database\Attributes;
+namespace Strux\Component\Database\Schema\Attributes;
 
 use Attribute;
 

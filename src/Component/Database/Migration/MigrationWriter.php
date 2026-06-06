@@ -5,9 +5,11 @@ namespace Strux\Component\Database\Migration;
 class MigrationWriter
 {
     private string $migrationPath;
+    private ?\PDO $db;
 
-    public function __construct(string $basePath)
+    public function __construct(string $basePath, ?\PDO $db = null)
     {
+        $this->db = $db;
         $this->migrationPath = \Strux\Component\Config\DirectoryResolver::getDefaults($basePath)['migrations'];
 
         if (!is_dir($this->migrationPath)) {
@@ -43,6 +45,18 @@ class MigrationWriter
         // Reverse order for rollback (Drop FKs first, then Drop Tables, etc)
         $reversedUp = array_reverse($upQueries);
 
+        $dialect = null;
+        if ($this->db) {
+            $driver = $this->db->getAttribute(\PDO::ATTR_DRIVER_NAME);
+            $dialect = match ($driver) {
+                'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+                'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
+                'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
+                'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
+                default => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+            };
+        }
+
         foreach ($reversedUp as $query) {
             // 1. CREATE TABLE -> DROP TABLE
             if (preg_match('/CREATE TABLE (?:IF NOT EXISTS )?`?([^`\s]+)`?/i', $query, $matches)) {
@@ -67,11 +81,15 @@ class MigrationWriter
                 continue;
             }
 
-            // 4. ADD UNIQUE INDEX -> DROP INDEX
-            if (preg_match('/ALTER TABLE `?([^`\s]+)`? ADD UNIQUE INDEX `?([^`\s]+)`?/i', $query, $matches)) {
-                $table = $matches[1];
-                $index = $matches[2];
-                $down[] = "ALTER TABLE `$table` DROP INDEX `$index`;";
+            // 4. CREATE INDEX -> DROP INDEX
+            if (preg_match('/CREATE\s+(?:UNIQUE\s+)?INDEX\s+([^\s]+)\s+ON\s+([^\s\(]+)/i', $query, $matches)) {
+                $index = trim(trim($matches[1], '"'), '`');
+                $table = trim(trim($matches[2], '"'), '`');
+                if ($dialect) {
+                    $down[] = $dialect->buildDropIndexQuery($table, $index) . ';';
+                } else {
+                    $down[] = "ALTER TABLE `$table` DROP INDEX `$index`;";
+                }
                 continue;
             }
 

@@ -13,6 +13,8 @@ use Strux\Auth\JwtService;
 use Strux\Component\Exceptions\Container\ContainerException;
 use Strux\Support\ContainerBridge;
 
+use function is_string, is_array, in_array;
+
 trait WillAuthenticate
 {
     public function verifyPassword(string $password): bool
@@ -40,7 +42,7 @@ trait WillAuthenticate
             /** @var JwtService $jwtService */
             $jwtService = ContainerBridge::resolve(JwtService::class);
             return $jwtService->generateToken($this);
-        } catch (ContainerException|NotFoundExceptionInterface|ContainerExceptionInterface $e) {
+        } catch (ContainerException | NotFoundExceptionInterface | ContainerExceptionInterface $e) {
             throw new InvalidArgumentException("Failed to resolve JWT Service: " . $e->getMessage(), 0, $e);
         }
     }
@@ -58,16 +60,10 @@ trait WillAuthenticate
     {
         $roles = is_array($roles) ? $roles : [$roles];
 
-        // Ensure roles are loaded
         if ($this->roles->isEmpty()) {
-            // We access the property via __get to trigger lazy loading if not set
-            // or manually load it if __get doesn't handle empty collections well
             $this->roles = $this->__get('roles');
-            // If __get returns a Collection, we use it.
-            // If relation was empty in DB, it returns empty Collection.
         }
 
-        // Fallback for string-based 'role' column (backward compatibility)
         /* if (in_array($this->role, $roles)) {
             return true;
         } */
@@ -88,20 +84,13 @@ trait WillAuthenticate
     {
         $permissions = is_array($permissions) ? $permissions : [$permissions];
 
-        // 1. Ensure Roles are loaded
         if ($this->roles->isEmpty()) {
             $this->__get('roles');
         }
 
-        // 2. Iterate through roles and check their permissions
-        // We need to make sure each Roles has its permissions loaded.
-        // Lazy loading loop (N+1 issue risk, but functional for single user auth check)
-
         /** @var Roles $role */
         foreach ($this->roles as $role) {
-            // Lazy load permissions for this role if not already loaded
             if (!isset($role->permissions) || $role->permissions->isEmpty()) {
-                // Accessing the property triggers __get on the Roles model
                 $role->permissions;
             }
 

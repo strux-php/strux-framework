@@ -9,7 +9,7 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionProperty;
 use RuntimeException;
-use Strux\Component\Database\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Table;
 use Strux\Component\Database\ORM\Attributes\OwnedBy as OwnedByAttr;
 use Strux\Component\Database\ORM\Attributes\OwnedByMany as OwnedByManyAttr;
 use Strux\Component\Database\ORM\Attributes\OwnsMany as OwnsManyAttr;

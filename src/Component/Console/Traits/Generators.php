@@ -136,10 +136,10 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Strux\Component\Database\Attributes\Table;
-use Strux\Component\Database\Attributes\Column;
-use Strux\Component\Database\Attributes\Id;
-use Strux\Component\Database\Types\Field;
+use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Column;
+use Strux\Component\Database\Schema\Attributes\Id;
+use Strux\Component\Database\Schema\Types\Field;
 use Strux\Component\Database\ORM\Model;
 
 #[Table('{$tableName}')]
@@ -435,13 +435,13 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use DateTime;
+use DateTimeInterface;
 use Strux\Auth\Traits\WillAuthenticate;
-use Strux\Component\Database\Attributes\Column;
-use Strux\Component\Database\Attributes\Id;
-use Strux\Component\Database\Attributes\Table;
-use Strux\Component\Database\Attributes\Unique;
-use Strux\Component\Database\Types\Field;
+use Strux\Component\Database\Schema\Attributes\Column;
+use Strux\Component\Database\Schema\Attributes\Id;
+use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Unique;
+use Strux\Component\Database\Schema\Types\Field;
 use Strux\Component\Database\ORM\Attributes\OwnedByMany;
 use Strux\Component\Database\ORM\Model;
 use Strux\Support\Collection;
@@ -467,10 +467,10 @@ class User extends Model
     public string \$password;
 
     #[Column(type: Field::timestamp, currentTimestamp: true)]
-    public ?DateTime \$createdAt;
+    public ?DateTimeInterface \$createdAt;
 
     #[Column(type: Field::timestamp, currentTimestamp: true, onUpdateCurrentTimestamp: true)]
-    public ?DateTime \$updatedAt = null;
+    public ?DateTimeInterface \$updatedAt = null;
 
     #[OwnedByMany(related: Roles::class)]
     public Collection \$roles;
@@ -518,10 +518,10 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Strux\Component\Database\Attributes\Column;
-use Strux\Component\Database\Attributes\Id;
-use Strux\Component\Database\Attributes\Table;
-use Strux\Component\Database\Attributes\Unique;
+use Strux\Component\Database\Schema\Attributes\Column;
+use Strux\Component\Database\Schema\Attributes\Id;
+use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Unique;
 use Strux\Component\Database\ORM\Attributes\OwnedByMany;
 use Strux\Component\Database\ORM\Model;
 use Strux\Support\Collection;
@@ -560,10 +560,10 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Strux\Component\Database\Attributes\Column;
-use Strux\Component\Database\Attributes\Id;
-use Strux\Component\Database\Attributes\Table;
-use Strux\Component\Database\Attributes\Unique;
+use Strux\Component\Database\Schema\Attributes\Column;
+use Strux\Component\Database\Schema\Attributes\Id;
+use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Unique;
 use Strux\Component\Database\ORM\Attributes\OwnedByMany;
 use Strux\Component\Database\ORM\Model;
 use Strux\Support\Collection;

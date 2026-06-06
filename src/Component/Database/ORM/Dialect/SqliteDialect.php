@@ -78,4 +78,29 @@ class SqliteDialect extends SqlDialect
         }
         $db->exec('PRAGMA foreign_keys = ON;');
     }
+
+    public function buildDropIndexQuery(string $table, string $indexName): string
+    {
+        return "DROP INDEX {$this->quote($indexName)}";
+    }
+
+    public function translateType(string $type): string
+    {
+        $type = strtoupper($type);
+
+        if (str_starts_with($type, 'TINYINT(1)')) {
+            return 'INTEGER';
+        }
+
+        // Remove UNSIGNED
+        $type = str_replace(' UNSIGNED', '', $type);
+
+        // SQLite doesn't natively support JSON as a distinct type but validates it
+        // TEXT is perfectly fine since SQLite affinity handles JSON as text
+        if ($type === 'JSON') {
+            return 'TEXT';
+        }
+
+        return $type;
+    }
 }

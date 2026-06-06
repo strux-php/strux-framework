@@ -6,11 +6,12 @@ use BackedEnum;
 use PDO;
 use ReflectionClass;
 use ReflectionException;
-use Strux\Component\Database\Attributes\Column;
-use Strux\Component\Database\Attributes\Id;
-use Strux\Component\Database\Attributes\Table;
-use Strux\Component\Database\Attributes\Unique;
-use Strux\Component\Database\Types\Field;
+use Strux\Component\Database\Schema\Attributes\Column;
+use Strux\Component\Database\Schema\Attributes\Id;
+use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Unique;
+use Strux\Component\Database\Schema\Attributes\Index;
+use Strux\Component\Database\Schema\Types\Field;
 use Strux\Component\Database\ORM\Attributes\OwnedBy;
 use Strux\Component\Database\ORM\Attributes\OwnedByMany;
 use Strux\Support\Helpers\Utils;
@@ -20,7 +21,7 @@ class Blueprint
     /**
      * @throws ReflectionException
      */
-    public static function generateUniqueConstraints(string $modelClass): array
+    public static function generateIndexes(string $modelClass, PDO $db): array
     {
         $reflection = new ReflectionClass($modelClass);
         $tableAttribute = $reflection->getAttributes(Table::class)[0] ?? null;
@@ -32,22 +33,45 @@ class Blueprint
         $tableName = $tableAttribute->newInstance()->name;
         $sql = [];
 
+        $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $dialect = match ($driver) {
+            'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+            'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
+            'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
+            'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
+            default => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+        };
+
+        // 1. Process Class-level #[Index] attributes (Composite Indexes)
+        foreach ($reflection->getAttributes(Index::class) as $attr) {
+            $instance = $attr->newInstance();
+            $columns = is_array($instance->columns) ? $instance->columns : [$instance->columns];
+            
+            $defaultName = $tableName . '_' . implode('_', $columns) . '_idx';
+            $indexName = $instance->name ?? $defaultName;
+            
+            $sql[$indexName] = $dialect->buildAddIndexQuery($tableName, $indexName, $columns, $instance->unique);
+        }
+
+        // 2. Process Property-level attributes
         foreach ($reflection->getProperties() as $property) {
             $columnAttr = $property->getAttributes(Column::class)[0] ?? null;
             $uniqueAttr = $property->getAttributes(Unique::class)[0] ?? null;
+            $indexAttr = $property->getAttributes(Index::class)[0] ?? null;
 
-            if ($columnAttr) {
-                /** @var Column $instance */
-                $instance = $columnAttr->newInstance();
-                $columnName = $instance->name ?? $property->getName();
+            if ($columnAttr || $indexAttr) {
+                $colInstance = $columnAttr?->newInstance();
+                $columnName = $colInstance->name ?? $property->getName();
 
-                $isUnique = ($uniqueAttr !== null) || $instance->unique;
+                $isUnique = ($uniqueAttr !== null) || ($colInstance && $colInstance->unique) || ($indexAttr && $indexAttr->newInstance()->unique);
+                $isIndexed = $isUnique || ($indexAttr !== null);
 
-                if ($isUnique) {
-                    $manualIndexName = $uniqueAttr?->newInstance()->indexName;
-                    $indexName = $manualIndexName ?? "{$tableName}_{$columnName}_unique";
+                if ($isIndexed) {
+                    $manualIndexName = $uniqueAttr?->newInstance()->indexName ?? $indexAttr?->newInstance()->name;
+                    $suffix = $isUnique ? 'unique' : 'idx';
+                    $indexName = $manualIndexName ?? "{$tableName}_{$columnName}_{$suffix}";
 
-                    $sql[$indexName] = "ALTER TABLE `{$tableName}` ADD UNIQUE INDEX `{$indexName}` (`{$columnName}`)";
+                    $sql[$indexName] = $dialect->buildAddIndexQuery($tableName, $indexName, [$columnName], $isUnique);
                 }
             }
         }
@@ -220,8 +244,8 @@ class Blueprint
             $relatedPivotKey = $instance->relatedPivotKey
                 ?? (strtolower($relatedReflection->getShortName()) . '_id');
 
-            $fk1Type = self::getPrimaryKeyType($modelClass);
-            $fk2Type = self::getPrimaryKeyType($relatedClass);
+            $fk1Type = self::getPrimaryKeyType($modelClass, $db);
+            $fk2Type = self::getPrimaryKeyType($relatedClass, $db);
 
             if (!self::tableExists($db, $pivotTable)) {
                 $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
@@ -378,7 +402,7 @@ class Blueprint
         return null;
     }
 
-    private static function getPrimaryKeyType(string $class): string
+    private static function getPrimaryKeyType(string $class, ?PDO $db = null): string
     {
         if (!class_exists($class)) return "INT";
 
@@ -390,7 +414,7 @@ class Blueprint
                     /** @var Column $instance */
                     $instance = $colAttr->newInstance();
                     if ($instance->type) {
-                        return self::mapFieldToSql($instance->type, $instance->length);
+                        return self::mapFieldToSql($instance->type, $instance->length ?? 255, $db);
                     }
                 }
                 return "INT";
@@ -399,9 +423,21 @@ class Blueprint
         return "INT";
     }
 
-    private static function mapFieldToSql(Field $field, int $length = 255): string
+    private static function mapFieldToSql(Field $field, int $length = 255, ?PDO $db = null): string
     {
-        return match ($field) {
+        $dialect = null;
+        if ($db) {
+            $driver = $db->getAttribute(\PDO::ATTR_DRIVER_NAME);
+            $dialect = match ($driver) {
+                'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+                'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
+                'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
+                'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
+                default => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+            };
+        }
+
+        $baseType = match ($field) {
             Field::int, Field::integer => "INT",
             Field::intUnsigned, Field::integerUnsigned => "INT UNSIGNED",
             Field::tinyInteger => "TINYINT",
@@ -412,12 +448,29 @@ class Blueprint
             Field::mediumIntegerUnsigned => "MEDIUMINT UNSIGNED",
             Field::bigInteger => "BIGINT",
             Field::bigIntegerUnsigned => "BIGINT UNSIGNED",
+            Field::decimal => "DECIMAL",
+            Field::float => "FLOAT",
+            Field::double => "DOUBLE",
+            Field::boolean => "TINYINT(1)",
             Field::string => "VARCHAR($length)",
             Field::char => "CHAR($length)",
             Field::uuid => "CHAR(36)",
             Field::ulid => "CHAR(26)",
+            Field::text => "TEXT",
+            Field::mediumText => "MEDIUMTEXT",
+            Field::longText => "LONGTEXT",
+            Field::date => "DATE",
+            Field::dateTime => "DATETIME",
+            Field::time => "TIME",
+            Field::timestamp => "TIMESTAMP",
+            Field::year => "YEAR",
+            Field::binary => "BLOB",
+            Field::json => "JSON",
+            Field::enum => "VARCHAR($length)", // Agnostic default for Blueprint primary keys
             default => "VARCHAR($length)"
         };
+
+        return $dialect ? $dialect->translateType($baseType) : $baseType;
     }
 
     private static function tableExists(PDO $db, string $table): bool

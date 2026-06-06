@@ -176,7 +176,7 @@ abstract class Form implements FormInterface
                         $inputData[$name] = (string) $value;
                     } elseif (is_array($value)) {
                         $inputData[$name] = $value;
-                    } elseif ($value instanceof \DateTime) {
+                    } elseif ($value instanceof \DateTimeInterface) {
                         $inputData[$name] = $value->format('Y-m-d\TH:i:s');
                     }
                 } elseif (method_exists($data, 'get' . ucfirst($name))) {
@@ -415,7 +415,7 @@ abstract class Form implements FormInterface
             return BooleanField::class;
         }
 
-        if ($phpType === 'DateTime') {
+        if ($phpType === 'DateTime' || $phpType === 'DateTimeInterface' || $phpType === 'DateTimeImmutable') {
             if (str_ends_with($lower, '_at') || str_contains($lower, 'date')) {
                 return DateTimeLocalField::class;
             }

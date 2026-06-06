@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Strux\Component\Database\ORM;
 
 use Closure;
-use DateTime;
 use PDO;
 use PDOException;
 use PDOStatement;
@@ -13,8 +12,9 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionProperty;
 use RuntimeException;
-use Strux\Component\Database\Attributes\Id;
-use Strux\Component\Database\Attributes\Table;
+use Strux\Component\Database\Database;
+use Strux\Component\Database\Schema\Attributes\Id;
+use Strux\Component\Database\Schema\Attributes\Table;
 use Strux\Component\Exceptions\DatabaseException;
 use Strux\Support\Helpers\Utils;
 use Strux\Component\Database\ORM\Attributes\RelationAttribute;
@@ -24,6 +24,15 @@ use Strux\Component\Database\ORM\Behavior\HasQueryBuilder;
 use Strux\Component\Database\ORM\Behavior\HasRelationships;
 use Strux\Component\Database\ORM\Behavior\HasTimestamps;
 use Strux\Component\Database\ORM\Behavior\HasValidation;
+use Strux\Component\Database\ORM\Events\Created;
+use Strux\Component\Database\ORM\Events\Creating;
+use Strux\Component\Database\ORM\Events\Deleted;
+use Strux\Component\Database\ORM\Events\Deleting;
+use Strux\Component\Database\ORM\Events\Retrieved;
+use Strux\Component\Database\ORM\Events\Saved;
+use Strux\Component\Database\ORM\Events\Saving;
+use Strux\Component\Database\ORM\Events\Updated;
+use Strux\Component\Database\ORM\Events\Updating;
 use Strux\Support\ContainerBridge;
 use Throwable;
 
@@ -80,7 +89,7 @@ abstract class Model
     }
 
     // --- State Accessors ---
-    
+
     /**
      * Determine if the model exists in the database.
      */
@@ -166,7 +175,7 @@ abstract class Model
         $instance->_original = $data;
         $instance->_isQueryBuilderInstance = false;
 
-        $instance->fireModelEvent(new \Strux\Component\Database\ORM\Events\Retrieved($instance));
+        $instance->fireModelEvent(new Retrieved($instance));
 
         return $instance;
     }
@@ -233,7 +242,7 @@ abstract class Model
         return $this->_primaryKeyName = 'id';
     }
 
-    private function reflection(): ReflectionClass
+    protected function reflection(): ReflectionClass
     {
         static $reflectionCache = [];
         $class = static::class;
@@ -252,16 +261,16 @@ abstract class Model
     {
         $action = strtoupper(strtok(ltrim($sql), " \t\n\r\0\x0B("));
         $type = in_array($action, ['SELECT', 'SHOW', 'DESCRIBE', 'EXPLAIN']) ? 'read' : 'write';
-        
+
         if (self::$transactionLevel > 0) {
             $type = 'write';
         }
 
         try {
-            /** @var \Strux\Component\Database\Database $dbManager */
-            $dbManager = ContainerBridge::resolve(\Strux\Component\Database\Database::class);
+            /** @var Database $dbManager */
+            $dbManager = ContainerBridge::resolve(Database::class);
             $pdo = $dbManager->getConnection($type);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $pdo = $this->db;
         }
 
@@ -290,7 +299,7 @@ abstract class Model
             return false;
         }
 
-        $this->fireModelEvent(new \Strux\Component\Database\ORM\Events\Saving($this));
+        $this->fireModelEvent(new Saving($this));
 
         $attributes = $this->_getPublicPropertiesForDb();
         $this->handleTimestamps($attributes);
@@ -303,7 +312,7 @@ abstract class Model
 
         if ($success) {
             $this->_original = $this->_getPublicPropertiesForDb();
-            $this->fireModelEvent(new \Strux\Component\Database\ORM\Events\Saved($this));
+            $this->fireModelEvent(new Saved($this));
             $this->afterSave();
         }
         return $success;
@@ -322,7 +331,7 @@ abstract class Model
                 $prepared[$key] = $value;
             } elseif (is_array($value)) {
                 $prepared[$key] = json_encode($value);
-            } elseif ($value instanceof DateTime) {
+            } elseif ($value instanceof \DateTimeInterface) {
                 $prepared[$key] = $value->format('Y-m-d H:i:s');
             }
         }
@@ -338,7 +347,7 @@ abstract class Model
         if (empty($dirty))
             return true;
 
-        $this->fireModelEvent(new \Strux\Component\Database\ORM\Events\Updating($this));
+        $this->fireModelEvent(new Updating($this));
 
         $pkValue = $this->{$this->getPrimaryKey()} ?? null;
         if ($pkValue === null)
@@ -354,7 +363,7 @@ abstract class Model
         $success = $stmt->rowCount() >= 0;
 
         if ($success) {
-            $this->fireModelEvent(new \Strux\Component\Database\ORM\Events\Updated($this));
+            $this->fireModelEvent(new Updated($this));
             $this->afterUpdate();
         }
 
@@ -374,7 +383,7 @@ abstract class Model
                 $prepared[$key] = $value;
             } elseif (is_array($value)) {
                 $prepared[$key] = json_encode($value);
-            } elseif ($value instanceof DateTime) {
+            } elseif ($value instanceof \DateTimeInterface) {
                 $prepared[$key] = $value->format('Y-m-d H:i:s');
             }
         }
@@ -390,7 +399,7 @@ abstract class Model
                 if ($type instanceof \ReflectionNamedType) {
                     $typeName = $type->getName();
                     if (!in_array($typeName, ['string', 'mixed', 'self', 'parent'], true)) {
-                        throw new \RuntimeException(
+                        throw new RuntimeException(
                             sprintf(
                                 "Cannot auto-generate a %s for field '%s': expected string-compatible type, got %s.",
                                 $idAttr->autoGenerate,
@@ -404,7 +413,7 @@ abstract class Model
                 $generated = match ($idAttr->autoGenerate) {
                     'uuid' => Utils::uuid(),
                     'ulid' => Utils::ulid(),
-                    default => throw new \RuntimeException("Unknown autoGenerate option: {$idAttr->autoGenerate}")
+                    default => throw new RuntimeException("Unknown autoGenerate option: {$idAttr->autoGenerate}")
                 };
 
                 $this->{$pkName} = $generated;
@@ -417,7 +426,7 @@ abstract class Model
         if (empty($attributesToSave))
             return false;
 
-        $this->fireModelEvent(new \Strux\Component\Database\ORM\Events\Creating($this));
+        $this->fireModelEvent(new Creating($this));
 
         $columns = array_keys($attributesToSave);
         $placeholders = array_fill(0, count($columns), '?');
@@ -435,7 +444,7 @@ abstract class Model
         }
         $this->_exists = true;
 
-        $this->fireModelEvent(new \Strux\Component\Database\ORM\Events\Created($this));
+        $this->fireModelEvent(new Created($this));
 
         return true;
     }
@@ -447,7 +456,7 @@ abstract class Model
         if (!$this->_exists)
             return false;
 
-        $this->fireModelEvent(new \Strux\Component\Database\ORM\Events\Deleting($this));
+        $this->fireModelEvent(new Deleting($this));
 
         $grammar = $this->getDialect();
         $sql = $grammar->buildDeleteQuery($this->getTable()) . " WHERE " . $grammar->quote($this->getPrimaryKey()) . " = ?";
@@ -455,7 +464,7 @@ abstract class Model
 
         if ($stmt->rowCount() > 0) {
             $this->_exists = false;
-            $this->fireModelEvent(new \Strux\Component\Database\ORM\Events\Deleted($this));
+            $this->fireModelEvent(new Deleted($this));
             return true;
         }
         return false;
@@ -508,20 +517,20 @@ abstract class Model
     public static function beginTransaction(): void
     {
         try {
-            /** @var \Strux\Component\Database\Database $dbManager */
-            $dbManager = ContainerBridge::resolve(\Strux\Component\Database\Database::class);
+            /** @var Database $dbManager */
+            $dbManager = ContainerBridge::resolve(Database::class);
             $pdo = $dbManager->getConnection('write');
-        } catch (\Throwable $e) {
-            /* @var PDO $pdo */
+        } catch (Throwable $e) {
+            /** @var PDO $pdo */
             $pdo = ContainerBridge::resolve(PDO::class);
         }
-        
+
         if (self::$transactionLevel === 0) {
             $pdo->beginTransaction();
         } else {
             $pdo->exec("SAVEPOINT trans_" . self::$transactionLevel);
         }
-        
+
         self::$transactionLevel++;
     }
 
@@ -531,20 +540,20 @@ abstract class Model
     public static function commit(): void
     {
         try {
-            /** @var \Strux\Component\Database\Database $dbManager */
-            $dbManager = ContainerBridge::resolve(\Strux\Component\Database\Database::class);
+            /** @var Database $dbManager */
+            $dbManager = ContainerBridge::resolve(Database::class);
             $pdo = $dbManager->getConnection('write');
-        } catch (\Throwable $e) {
-            /* @var PDO $pdo */
+        } catch (Throwable $e) {
+            /** @var PDO $pdo */
             $pdo = ContainerBridge::resolve(PDO::class);
         }
-        
+
         if (self::$transactionLevel === 0) {
             return;
         }
-        
+
         self::$transactionLevel--;
-        
+
         if (self::$transactionLevel === 0) {
             $pdo->commit();
         } else {
@@ -562,20 +571,20 @@ abstract class Model
     public static function rollBack(): void
     {
         try {
-            /** @var \Strux\Component\Database\Database $dbManager */
-            $dbManager = ContainerBridge::resolve(\Strux\Component\Database\Database::class);
+            /** @var Database $dbManager */
+            $dbManager = ContainerBridge::resolve(Database::class);
             $pdo = $dbManager->getConnection('write');
-        } catch (\Throwable $e) {
-            /* @var PDO $pdo */
+        } catch (Throwable $e) {
+            /** @var PDO $pdo */
             $pdo = ContainerBridge::resolve(PDO::class);
         }
-        
+
         if (self::$transactionLevel === 0) {
             return;
         }
-        
+
         self::$transactionLevel--;
-        
+
         if (self::$transactionLevel === 0) {
             $pdo->rollBack();
         } else {

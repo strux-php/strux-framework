@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Strux\Component\Database\ORM\Attributes;
 
 use Attribute;
-use Strux\Component\Database\Types\KeyAction;
+use Strux\Component\Database\Schema\Types\KeyAction;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class OwnedBy extends RelationAttribute

@@ -98,7 +98,7 @@ DB_PASSWORD=secret
 
 ## 📂 Directory Structure
 
-```
+```text
 bin/        # CLI entry point
 etc/        # Configuration & route files
 src/        # Application source code
@@ -215,45 +215,116 @@ return $this->view('auth/login', ['error' => 'Invalid credentials']);
 
 ## 🗄 Database & ORM
 
-Strux includes an **Active Record ORM** using PHP Attributes.
+Strux includes an **Active Record ORM** built from the ground up using modern PHP Attributes. Think of the ORM (Object-Relational Mapper) as a translator between your raw database tables and your clean PHP code. 
 
 ### ORM Definition
 
+You define your database tables simply by creating PHP classes and adding "Attributes" (the `#[...]` syntax) above your properties.
+
 ```php
+use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Column;
+use Strux\Component\Database\Schema\Attributes\Id;
+use Strux\Component\Database\Schema\Attributes\Index;
+use Strux\Component\Database\Schema\Attributes\Unique;
+use Strux\Component\Database\ORM\Model;
+
 #[Table('users')]
-class User extends ORM
+class User extends Model
 {
     #[Id]
-    #[Column('id')]
+    #[Column]
     public int $id;
 
-    #[Column('username')]
+    #[Column]
     public string $username;
 }
 ```
 
+> [!NOTE]
+> When you run database migrations, the framework automatically scans your code for these attributes and builds your database tables for you! You rarely have to write raw SQL.
+
 ### Basic Usage
 
 ```php
+// Creating a new record
 $user = new User();
 $user->username = 'john_doe';
 $user->save();
 
+// Finding and deleting a record
 $user = User::find(1);
 $user->delete();
 ```
+
+### ⚡ Database Indexing (Advanced Dialect-Agnostic Support)
+
+Indexes are like the index at the back of a large encyclopedia. Without an index, if you want to find every page that mentions "Apples", you have to read the entire book from start to finish. With an index, you just look up "Apples" and go straight to the correct pages. 
+
+In databases, indexes speed up your queries significantly. Strux provides a powerful, **dialect-agnostic** indexing system. This means whether you are using MySQL, PostgreSQL, SQLite, or SQL Server, Strux knows the exact right grammar to safely create and destroy your indexes!
+
+#### Single-Column Indexes
+If you frequently search for users by their `status` or `role`, you should index that column. You can do this by simply adding the `#[Index]` attribute directly to the property in your class.
+
+```php
+    #[Column]
+    #[Index]
+    public string $status;
+```
+> [!TIP]
+> The framework will automatically name this index something like `users_status_idx`. If you want to give it a custom name for strict database administration policies, you can do: `#[Index(name: 'my_custom_status_idx')]`.
+
+#### Unique Indexes
+If you want to ensure that two users can never have the same email address, you use a Unique Index. This enforces strict data integrity at the database level. Attempting to save a duplicate will throw a database error.
+
+```php
+    #[Column]
+    #[Unique] // Or alternatively: #[Index(unique: true)]
+    public string $email;
+```
+
+#### Composite Indexes (Multi-Column)
+Sometimes you query the database using multiple columns at the exact same time. For example, finding a user by checking their `firstname` AND their `lastname`. For this, you want a Composite Index to maximize performance. 
+
+Because a composite index involves multiple columns acting together, you apply this attribute to the **Class** itself, not an individual property.
+
+```php
+#[Table('users')]
+#[Index(columns: ['firstname', 'lastname'], name: 'idx_user_name')]
+class User extends Model
+{
+    // ...
+}
+```
+
+> [!WARNING]
+> Order matters incredibly in composite indexes! An index defined on `['firstname', 'lastname']` will drastically speed up queries searching by *both* names, OR queries searching by *just* `firstname`. However, it will **NOT** help queries searching by just `lastname`. Always order your most-queried columns first.
 
 ---
 
 ## 🏗 Migrations
 
+Database migrations are like "version control" (like Git) for your database structure. They allow you to define your tables in code and share them easily with your team.
+
+### Auto-Generating Migrations
+Strux is incredibly smart. It compares the PHP `#[Column]` and `#[Index]` attributes in your code against your actual live database. If it notices you added a new index or a new column, it will automatically generate a migration file for you containing the exact SQL queries needed to update the database!
+
 ```bash
+# Analyze code and automatically generate SQL differences
 php bin/console db:migrate
+
+# Apply the newly generated differences to the database
+php bin/console db:upgrade
 ```
+
+> [!IMPORTANT]
+> The auto-generated migration files also safely include `down()` methods that tell the database exactly how to reverse the changes if you make a mistake and need to rollback. Thanks to our dialect-agnostic engine, the rollback logic perfectly handles tearing down tables, dropping columns, and safely removing composite indexes whether you're on MySQL, Postgres, SQLite, or SQL Server!
 
 ---
 
 ## 🔍 Query Builder
+
+Under the hood, the ORM relies on a fluent Query Builder you can use for complex data retrieval.
 
 ```php
 $users = User::query()
@@ -276,13 +347,18 @@ Supported relationships:
 * `#[BelongsToMany]`
 
 ```php
-#[BelongsToMany(related: Course::class, pivotTable: 'enrollments')]
-public Collection $courses;
+use Strux\Component\Database\ORM\Attributes\BelongsToMany;
+
+class Student extends Model 
+{
+    #[BelongsToMany(related: Course::class, pivotTable: 'enrollments')]
+    public Collection $courses;
+}
 ```
 
 ```php
-$student->courses;
-$student->courses()->sync([1, 2, 3]);
+$student->courses; // Fetch courses
+$student->courses()->sync([1, 2, 3]); // Synchronize pivot table relationships
 ```
 
 ---
@@ -306,6 +382,9 @@ class SendWelcomeEmail
 
 ```php
 Queue::push(new SendEmailJob($user));
+```
+Start the worker:
+```bash
 php bin/console queue:start
 ```
 

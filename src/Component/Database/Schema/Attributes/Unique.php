@@ -1,6 +1,6 @@
 <?php
 
-namespace Strux\Component\Database\Attributes;
+namespace Strux\Component\Database\Schema\Attributes;
 
 use Attribute;
 

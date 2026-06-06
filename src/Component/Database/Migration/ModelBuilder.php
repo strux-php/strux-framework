@@ -5,11 +5,11 @@ namespace Strux\Component\Database\Migration;
 use PDO;
 use ReflectionClass;
 use ReflectionProperty;
-use Strux\Component\Database\Attributes\Column;
-use Strux\Component\Database\Attributes\Id;
-use Strux\Component\Database\Attributes\RenamedFrom;
-use Strux\Component\Database\Attributes\Table;
-use Strux\Component\Database\Types\Field;
+use Strux\Component\Database\Schema\Attributes\Column;
+use Strux\Component\Database\Schema\Attributes\Id;
+use Strux\Component\Database\Schema\Attributes\RenamedFrom;
+use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Types\Field;
 
 class ModelBuilder
 {
@@ -324,7 +324,7 @@ class ModelBuilder
                 $field = $row['Field'] ?? $row['name'];
                 $type = $row['Type'] ?? $row['type'];
                 $nullable = $row['Null'] ?? ($row['notnull'] ? 'NO' : 'YES'); // sqlite gives notnull=0/1
-                $default = $row['Default'] ?? $row['dflt_value'];
+                $default = $row['Default'] ?? $row['dflt_value'] ?? null;
 
                 $columns[$field] = [
                     'type' => $type,
@@ -363,16 +363,29 @@ class ModelBuilder
 
     private function mapType(?Field $field, ?string $phpType, int $length = 255, ?array $enums = null, int $precision = 10, int $scale = 2): string
     {
+        $driver = $this->db->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        $dialect = match ($driver) {
+            'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+            'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
+            'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
+            'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
+            default => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+        };
+
         if ($enums !== null || $field === Field::enum) {
-            if ($enums) {
-                $options = array_map(fn($val) => "'$val'", $enums);
-                $enumStr = implode(", ", $options);
-                return "ENUM($enumStr)";
+            if ($driver === 'mysql') {
+                if ($enums) {
+                    $options = array_map(fn($val) => "'$val'", $enums);
+                    $enumStr = implode(", ", $options);
+                    return "ENUM($enumStr)";
+                }
+            } else {
+                return "VARCHAR($length)";
             }
         }
 
         if ($field === null) {
-            return match ($phpType) {
+            $baseType = match ($phpType) {
                 'int' => "INT",
                 'float' => "FLOAT",
                 'bool' => "TINYINT(1)",
@@ -381,9 +394,10 @@ class ModelBuilder
                 'array' => "JSON",
                 default => "VARCHAR($length)"
             };
+            return $dialect->translateType($baseType);
         }
 
-        return match ($field) {
+        $baseType = match ($field) {
             Field::int, Field::integer => "INT",
             Field::intUnsigned, Field::integerUnsigned => "INT UNSIGNED",
             Field::tinyInteger => "TINYINT",
@@ -414,5 +428,7 @@ class ModelBuilder
             Field::json => "JSON",
             default => "VARCHAR($length)"
         };
+
+        return $dialect->translateType($baseType);
     }
 }
