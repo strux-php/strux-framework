@@ -31,4 +31,19 @@ abstract class Relation
     {
         return $this->query;
     }
+
+    /**
+     * Forward method calls to the underlying query builder.
+     */
+    public function __call(string $name, array $arguments)
+    {
+        $result = $this->query->$name(...$arguments);
+
+        // Return $this for method chaining on the relation, otherwise return the result.
+        if ($result === $this->query) {
+            return $this;
+        }
+
+        return $result;
+    }
 }

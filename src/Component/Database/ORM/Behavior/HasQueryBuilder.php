@@ -590,6 +590,43 @@ trait HasQueryBuilder
         }
     }
 
+    /**
+     * Perform a bulk update on the current query builder instance.
+     *
+     * @param array $values Associative array of column => value
+     * @return int Number of affected rows
+     */
+    public function updateMany(array $values): int
+    {
+        if (empty($values)) {
+            return 0;
+        }
+
+        $builder = $this->_getQueryBuilderInstance();
+        $grammar = $builder->getDialect();
+        $table = $grammar->quoteTable($builder->_from ?? $builder->getTable());
+
+        $columns = array_keys($values);
+        $bindings = array_values($values);
+
+        // Extract compiled WHERE bindings
+        $builder->_compiledBindings = [];
+        $builder->_extractBindingsFromWheres($builder->_wheres);
+        $whereBindings = $builder->_compiledBindings;
+
+        // Ensure we merge SET bindings before WHERE bindings
+        $finalBindings = array_merge($bindings, $whereBindings);
+
+        $sql = $grammar->buildUpdateQuery($builder->_from ?? $builder->getTable(), $columns, $builder->_wheres);
+
+        try {
+            $stmt = $builder->_execute($sql, $finalBindings);
+            return $stmt->rowCount();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
     // --- Aggregates ---
 
     protected function _aggregate(string $function, string $column): mixed

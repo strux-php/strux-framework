@@ -84,5 +84,10 @@ class InfrastructureRegistry extends ServiceRegistry
                 logger: $c->get(LoggerInterface::class)
             )
         );
+
+        $this->container->singleton(
+            \Strux\Component\Mapper\MapperInterface::class,
+            static fn(ContainerInterface $c) => new \Strux\Component\Mapper\Mapper()
+        );
     }
 }

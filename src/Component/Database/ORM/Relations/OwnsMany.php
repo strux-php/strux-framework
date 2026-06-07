@@ -23,19 +23,25 @@ class OwnsMany extends Relation
         if (!$related->getTable()) {
             throw new InvalidArgumentException('Related model must have a table defined.');
         }
+
+        $this->addBaseConstraints();
+    }
+
+    public function addBaseConstraints(): void
+    {
+        $localKey = $this->parent->{$this->localKey};
+        if (!empty($localKey)) {
+            $this->getQuery()->where($this->foreignKey, $localKey);
+        }
     }
 
     public function getResults(): Collection
     {
-        $localKey = $this->parent->{$this->localKey};
-
-        if (empty($localKey)) {
+        if (empty($this->parent->{$this->localKey})) {
             return new Collection([]);
         }
 
-        return $this->getQuery()
-            ->where($this->foreignKey, $localKey)
-            ->get();
+        return $this->getQuery()->get();
     }
 
     public function addEagerConstraints(array $models): void

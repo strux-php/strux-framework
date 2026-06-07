@@ -126,6 +126,15 @@ abstract class SqlDialect
         return $sql;
     }
 
+    public function buildUpdateQuery(string $table, array $columns, array $wheres = []): string
+    {
+        $table = $this->quoteTable($table);
+        $setSql = implode(', ', array_map(fn($col) => $this->quote($col) . ' = ?', $columns));
+        $whereSql = empty($wheres) ? '' : ' WHERE ' . $this->compileWheres($wheres);
+
+        return "UPDATE {$table} SET {$setSql}{$whereSql}";
+    }
+
     public function buildInsertQuery(string $table, array $columns, array $values): string
     {
         $columnsStr = implode(', ', array_map([$this, 'quote'], $columns));
@@ -133,13 +142,7 @@ abstract class SqlDialect
         return "INSERT INTO " . $this->quoteTable($table) . " ($columnsStr) VALUES ($placeholdersStr)";
     }
 
-    public function buildUpdateQuery(string $table, array $columns): string
-    {
-        $setClauses = implode(', ', array_map(function ($col) {
-            return $this->quote($col) . " = ?";
-        }, $columns));
-        return "UPDATE " . $this->quoteTable($table) . " SET $setClauses";
-    }
+
 
     public function buildDeleteQuery(string $table): string
     {

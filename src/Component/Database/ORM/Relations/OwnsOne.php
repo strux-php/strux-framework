@@ -22,6 +22,16 @@ class OwnsOne extends Relation
         if (!$related->getTable()) {
             throw new InvalidArgumentException('Related model must have a table defined.');
         }
+
+        $this->addBaseConstraints();
+    }
+
+    public function addBaseConstraints(): void
+    {
+        $localKey = $this->parent->{$this->localKey};
+        if (!empty($localKey)) {
+            $this->getQuery()->where($this->foreignKey, $localKey);
+        }
     }
 
     /**
@@ -29,9 +39,11 @@ class OwnsOne extends Relation
      */
     public function getResults(): ?Model
     {
-        return $this->getQuery()
-            ->where($this->foreignKey, $this->parent->{$this->localKey})
-            ->first();
+        if (empty($this->parent->{$this->localKey})) {
+            return null;
+        }
+
+        return $this->getQuery()->first();
     }
 
     /**
