@@ -444,7 +444,7 @@ if (!function_exists('isActive')) {
 }
 
 if (!function_exists('cache')) {
-    function cache(string $key = null, mixed $default = null): mixed
+    function cache(?string $key = null, mixed $default = null): mixed
     {
         /** @var CacheInterface $cache */
         $cache = ContainerBridge::get(CacheInterface::class);
