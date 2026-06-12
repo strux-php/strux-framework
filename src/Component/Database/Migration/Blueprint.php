@@ -8,7 +8,7 @@ use ReflectionClass;
 use ReflectionException;
 use Strux\Component\Database\Schema\Attributes\Column;
 use Strux\Component\Database\Schema\Attributes\Id;
-use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Entity;
 use Strux\Component\Database\Schema\Attributes\Unique;
 use Strux\Component\Database\Schema\Attributes\Index;
 use Strux\Component\Database\Schema\Types\Field;
@@ -24,13 +24,13 @@ class Blueprint
     public static function generateIndexes(string $modelClass, PDO $db): array
     {
         $reflection = new ReflectionClass($modelClass);
-        $tableAttribute = $reflection->getAttributes(Table::class)[0] ?? null;
+        $tableAttribute = $reflection->getAttributes(Entity::class)[0] ?? null;
 
         if (!$tableAttribute) {
             return [];
         }
 
-        $tableName = $tableAttribute->newInstance()->name;
+        $tableName = $tableAttribute->newInstance()->table;
         $sql = [];
 
         $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
@@ -67,7 +67,7 @@ class Blueprint
                 $isIndexed = $isUnique || ($indexAttr !== null);
 
                 if ($isIndexed) {
-                    $manualIndexName = $uniqueAttr?->newInstance()->indexName ?? $indexAttr?->newInstance()->name;
+                    $manualIndexName = $uniqueAttr?->newInstance()->indexName ?? $indexAttr?->newInstance()->table;
                     $suffix = $isUnique ? 'unique' : 'idx';
                     $indexName = $manualIndexName ?? "{$tableName}_{$columnName}_{$suffix}";
 
@@ -85,13 +85,13 @@ class Blueprint
     public static function generateForeignKeyConstraints(string $modelClass, PDO $db): array
     {
         $reflection = new ReflectionClass($modelClass);
-        $tableAttribute = $reflection->getAttributes(Table::class)[0] ?? null;
+        $tableAttribute = $reflection->getAttributes(Entity::class)[0] ?? null;
 
         if (!$tableAttribute) {
             return [];
         }
 
-        $tableName = $tableAttribute->newInstance()->name;
+        $tableName = $tableAttribute->newInstance()->table;
 
         // 1. Fetch existing constraints to avoid duplicates
         $existingConstraints = self::getTableConstraints($db, $tableName);
@@ -130,10 +130,10 @@ class Blueprint
 
                 if (class_exists($relatedClass)) {
                     $relatedReflection = new ReflectionClass($relatedClass);
-                    $relatedTableAttr = $relatedReflection->getAttributes(Table::class)[0] ?? null;
+                    $relatedTableAttr = $relatedReflection->getAttributes(Entity::class)[0] ?? null;
 
                     if ($relatedTableAttr) {
-                        $relatedTable = $relatedTableAttr->newInstance()->name;
+                        $relatedTable = $relatedTableAttr->newInstance()->table;
                         $constraintName = "fk_{$tableName}_{$foreignKeyColumn}";
 
                         // 2. Skip if constraint already exists
@@ -168,10 +168,10 @@ class Blueprint
     public static function generatePivotTableSql(string $modelClass, PDO $db, array $dbConfig = []): array
     {
         $reflection = new ReflectionClass($modelClass);
-        $tableAttribute = $reflection->getAttributes(Table::class)[0] ?? null;
+        $tableAttribute = $reflection->getAttributes(Entity::class)[0] ?? null;
         if (!$tableAttribute) return [];
 
-        $currentTable = $tableAttribute->newInstance()->name;
+        $currentTable = $tableAttribute->newInstance()->table;
         $sql = [];
 
         $engine = $dbConfig['engine'] ?: 'InnoDB';
@@ -189,8 +189,8 @@ class Blueprint
             if (!class_exists($relatedClass)) continue;
 
             $relatedReflection = new ReflectionClass($relatedClass);
-            $relatedTableAttr = $relatedReflection->getAttributes(Table::class)[0] ?? null;
-            $relatedTable = $relatedTableAttr ? $relatedTableAttr->newInstance()->name : null;
+            $relatedTableAttr = $relatedReflection->getAttributes(Entity::class)[0] ?? null;
+            $relatedTable = $relatedTableAttr ? $relatedTableAttr->newInstance()->table : null;
 
             // --- PIVOT TABLE NAME LOGIC ---
             $pivotTableInput = $instance->pivotTable;
@@ -201,9 +201,9 @@ class Blueprint
                 // Check if the input is a class that exists
                 if (class_exists($pivotTableInput)) {
                     $pivotReflection = new ReflectionClass($pivotTableInput);
-                    $pivotTableAttr = $pivotReflection->getAttributes(Table::class)[0] ?? null;
+                    $pivotTableAttr = $pivotReflection->getAttributes(Entity::class)[0] ?? null;
                     if ($pivotTableAttr) {
-                        $pivotTable = $pivotTableAttr->newInstance()->name;
+                        $pivotTable = $pivotTableAttr->newInstance()->table;
                         $isExplicitModel = true;
                     }
                 } else {
@@ -302,10 +302,10 @@ class Blueprint
     public static function generatePivotConstraints(string $modelClass, PDO $db): array
     {
         $reflection = new ReflectionClass($modelClass);
-        $tableAttribute = $reflection->getAttributes(Table::class)[0] ?? null;
+        $tableAttribute = $reflection->getAttributes(Entity::class)[0] ?? null;
         if (!$tableAttribute) return [];
 
-        $currentTable = $tableAttribute->newInstance()->name;
+        $currentTable = $tableAttribute->newInstance()->table;
         $sql = [];
 
         foreach ($reflection->getProperties() as $property) {
@@ -320,9 +320,9 @@ class Blueprint
             $relatedReflection = null;
             if (class_exists($relatedClass)) {
                 $relatedReflection = new ReflectionClass($relatedClass);
-                $relatedTableAttr = $relatedReflection->getAttributes(Table::class)[0] ?? null;
+                $relatedTableAttr = $relatedReflection->getAttributes(Entity::class)[0] ?? null;
                 if ($relatedTableAttr) {
-                    $relatedTable = $relatedTableAttr->newInstance()->name;
+                    $relatedTable = $relatedTableAttr->newInstance()->table;
                 }
             }
             if (!$relatedTable) continue;
@@ -334,9 +334,9 @@ class Blueprint
             if ($pivotTableInput) {
                 if (class_exists($pivotTableInput)) {
                     $pivotReflection = new ReflectionClass($pivotTableInput);
-                    $pivotTableAttr = $pivotReflection->getAttributes(Table::class)[0] ?? null;
+                    $pivotTableAttr = $pivotReflection->getAttributes(Entity::class)[0] ?? null;
                     if ($pivotTableAttr) {
-                        $pivotTable = $pivotTableAttr->newInstance()->name;
+                        $pivotTable = $pivotTableAttr->newInstance()->table;
                     }
                 } else {
                     $pivotTable = $pivotTableInput;
@@ -396,7 +396,7 @@ class Blueprint
         foreach ($reflection->getProperties() as $property) {
             if ($property->getAttributes(Id::class)[0] ?? null) {
                 $colAttr = $property->getAttributes(Column::class)[0] ?? null;
-                return $colAttr?->newInstance()->name ?? $property->getName();
+                return $colAttr?->newInstance()->table ?? $property->getName();
             }
         }
         return null;
@@ -560,3 +560,4 @@ class Blueprint
         return $currentUnsigned !== $targetUnsigned;
     }
 }
+

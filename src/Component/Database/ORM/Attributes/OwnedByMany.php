@@ -14,6 +14,7 @@ class OwnedByMany extends RelationAttribute
         public ?string $pivotTable = null,
         public ?string $foreignPivotKey = null,
         public ?string $relatedPivotKey = null,
+        public string  $load = 'lazy',
         public string  $onDelete = 'cascade',
         public string  $onUpdate = 'cascade'
     )

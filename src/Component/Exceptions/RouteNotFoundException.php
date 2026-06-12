@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Strux\Component\Exceptions;
 
-use Exception;
+use Strux\Component\Exceptions\Http\NotFoundHttpException;
 use Throwable;
 
 /**
@@ -12,10 +12,10 @@ use Throwable;
  *
  * Thrown when no route matches the requested URI.
  */
-class RouteNotFoundException extends Exception
+class RouteNotFoundException extends NotFoundHttpException
 {
-    public function __construct(string $message = "404 Not Found", int $code = 0, ?Throwable $previous = null)
+    public function __construct(string $message = "404 Not Found", ?Throwable $previous = null, array $headers = [], int $code = 0)
     {
-        parent::__construct($message, $code, $previous);
+        parent::__construct($message, $previous, $headers, $code);
     }
 }

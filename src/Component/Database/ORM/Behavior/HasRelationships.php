@@ -9,7 +9,7 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionProperty;
 use RuntimeException;
-use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Entity;
 use Strux\Component\Database\ORM\Attributes\OwnedBy as OwnedByAttr;
 use Strux\Component\Database\ORM\Attributes\OwnedByMany as OwnedByManyAttr;
 use Strux\Component\Database\ORM\Attributes\OwnsMany as OwnsManyAttr;
@@ -236,9 +236,9 @@ trait HasRelationships
 
         if ($pivotTable && class_exists($pivotTable)) {
             $pivotReflection = new ReflectionClass($pivotTable);
-            $tableAttr = $pivotReflection->getAttributes(Table::class)[0] ?? null;
-            if ($tableAttr) {
-                $pivotTable = $tableAttr->newInstance()->name;
+            $entityAttr = $pivotReflection->getAttributes(Entity::class)[0] ?? null;
+            if ($entityAttr && $entityAttr->newInstance()->table !== null) {
+                $pivotTable = $entityAttr->newInstance()->table;
             }
         }
 

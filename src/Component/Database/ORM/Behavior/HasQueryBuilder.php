@@ -43,6 +43,48 @@ trait HasQueryBuilder
     private ?string $_stashKey = null;
     private array $_with = [];
     private array $_includes = [];
+    private array $_excludes = [];
+    protected static array $_globalEagerLoadStack = [];
+
+    public function without(mixed ...$relations): static
+    {
+        $builder = $this->_getQueryBuilderInstance();
+        foreach ($relations as $relation) {
+            if (is_array($relation)) {
+                foreach ($relation as $r) {
+                    $builder->_excludes[] = $r;
+                    unset($builder->_includes[$r]);
+                }
+            } else {
+                $builder->_excludes[] = $relation;
+                unset($builder->_includes[$relation]);
+            }
+        }
+        return $builder;
+    }
+
+    protected function _autoIncludeEagerLoads(): void
+    {
+        $class = static::class;
+        $count = array_count_values(self::$_globalEagerLoadStack)[$class] ?? 0;
+        if ($count >= 2) {
+            return;
+        }
+
+        $reflection = new \ReflectionClass($this);
+        foreach ($reflection->getProperties(\ReflectionProperty::IS_PUBLIC) as $prop) {
+            $attr = $prop->getAttributes(\Strux\Component\Database\ORM\Attributes\RelationAttribute::class, \ReflectionAttribute::IS_INSTANCEOF);
+            if (!empty($attr)) {
+                $relInstance = $attr[0]->newInstance();
+                if (property_exists($relInstance, 'load') && $relInstance->load === 'eager') {
+                    $name = $prop->getName();
+                    if (!in_array($name, $this->_excludes)) {
+                        $this->_includes[$name] = null;
+                    }
+                }
+            }
+        }
+    }
 
     public function getDialect(): SqlDialect
     {
@@ -71,6 +113,8 @@ trait HasQueryBuilder
         if (method_exists($instance, 'applyGlobalScopes')) {
             $instance->applyGlobalScopes($instance);
         }
+
+        $instance->_autoIncludeEagerLoads();
 
         return $instance;
     }
@@ -449,7 +493,23 @@ trait HasQueryBuilder
         $models = array_map(fn($row) => static::fromStorage($row), $results ?: []);
 
         if (!empty($models) && !empty($builder->_includes)) {
-            $this->eagerLoadRelations($models, $builder->_includes);
+            $class = static::class;
+            self::$_globalEagerLoadStack[] = $class;
+            
+            $safeIncludes = [];
+            foreach ($builder->_includes as $rel => $closure) {
+                // To avoid deep recursion, we could check the related class.
+                // Since that's hard to do beforehand, limiting the current class to depth 2 is a great heuristic.
+                $count = array_count_values(self::$_globalEagerLoadStack)[$class] ?? 0;
+                if ($count <= 2) {
+                    $safeIncludes[$rel] = $closure;
+                }
+            }
+            
+            if (!empty($safeIncludes)) {
+                $this->eagerLoadRelations($models, $safeIncludes);
+            }
+            array_pop(self::$_globalEagerLoadStack);
         }
 
         return new Collection($models);
@@ -895,7 +955,21 @@ trait HasQueryBuilder
                 $model = static::fromStorage($row);
                 
                 if (!empty($builder->_includes)) {
-                    $this->eagerLoadRelations([$model], $builder->_includes);
+                    $class = static::class;
+                    self::$_globalEagerLoadStack[] = $class;
+                    
+                    $safeIncludes = [];
+                    foreach ($builder->_includes as $rel => $closure) {
+                        $count = array_count_values(self::$_globalEagerLoadStack)[$class] ?? 0;
+                        if ($count <= 2) {
+                            $safeIncludes[$rel] = $closure;
+                        }
+                    }
+                    
+                    if (!empty($safeIncludes)) {
+                        $this->eagerLoadRelations([$model], $safeIncludes);
+                    }
+                    array_pop(self::$_globalEagerLoadStack);
                 }
 
                 yield $model;

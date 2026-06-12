@@ -20,9 +20,9 @@ use ReflectionMethod;
 use Strux\Component\Http\Attributes\Consumes;
 use Strux\Component\Http\Attributes\Produces;
 use Strux\Component\Http\Attributes\ResponseHeader;
-use Strux\Component\Exceptions\HttpMethodNotAllowedException;
+use Strux\Component\Exceptions\Http\HttpMethodNotAllowedException;
 use Strux\Component\Exceptions\RouteNotFoundException;
-use Strux\Component\Exceptions\UnsupportedMediaTypeException;
+use Strux\Component\Exceptions\Http\UnsupportedMediaTypeHttpException;
 use Strux\Component\Http\ApiResponse;
 use Strux\Component\Http\Middleware\Dispatcher as MiddlewareDispatcher;
 use Strux\Component\Http\Response;
@@ -139,7 +139,7 @@ class RouteDispatcher implements RequestHandlerInterface
                     // Simple check: does the Content-Type header contain the required media type?
                     // This is flexible enough to ignore charset parameters (e.g., 'application/json; charset=utf-8')
                     if (stripos($contentType, $consumesAttr->mediaType) === false) {
-                        throw new UnsupportedMediaTypeException(
+                        throw new UnsupportedMediaTypeHttpException(
                             "The request Content-Type '$contentType' is not supported. This endpoint consumes '$consumesAttr->mediaType'."
                         );
                     }

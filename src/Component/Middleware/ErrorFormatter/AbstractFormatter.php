@@ -11,10 +11,10 @@ use Psr\Http\Message\StreamFactoryInterface;
 use Strux\Component\Exceptions\Container\ContainerException;
 use Strux\Component\Exceptions\Container\NotFoundException;
 use Strux\Component\Exceptions\CSRFMismatchException;
-use Strux\Component\Exceptions\HttpMethodNotAllowedException;
+use Strux\Component\Exceptions\Http\HttpMethodNotAllowedException;
 use Strux\Component\Exceptions\RouteNotFoundException;
 use Strux\Component\Exceptions\RouteParameterTypeMismatchException;
-use Strux\Component\Exceptions\UnsupportedMediaTypeException;
+use Strux\Component\Exceptions\Http\UnsupportedMediaTypeHttpException;
 use Strux\Component\Exceptions\ValidationException;
 use Throwable;
 
@@ -78,7 +78,7 @@ abstract class AbstractFormatter implements FormatterInterface
         if ($error instanceof HttpMethodNotAllowedException) {
             return 405;
         }
-        if ($error instanceof UnsupportedMediaTypeException) {
+        if ($error instanceof UnsupportedMediaTypeHttpException) {
             return 415;
         }
         if ($error instanceof ValidationException) {

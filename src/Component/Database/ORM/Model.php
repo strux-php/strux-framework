@@ -14,7 +14,7 @@ use ReflectionProperty;
 use RuntimeException;
 use Strux\Component\Database\Database;
 use Strux\Component\Database\Schema\Attributes\Id;
-use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Entity;
 use Strux\Component\Exceptions\DatabaseException;
 use Strux\Support\Helpers\Utils;
 use Strux\Component\Database\ORM\Attributes\RelationAttribute;
@@ -52,6 +52,13 @@ abstract class Model
     /**
      * @throws ReflectionException
      */
+    protected static bool $preventLazyLoading = false;
+
+    public static function preventLazyLoading(bool $prevent = true): void
+    {
+        static::$preventLazyLoading = $prevent;
+    }
+
     public function __construct(array $attributes = [])
     {
         $this->resolveConnection();
@@ -206,6 +213,9 @@ abstract class Model
             if ($prop->isPublic()) {
                 $attributes = $prop->getAttributes(RelationAttribute::class, \ReflectionAttribute::IS_INSTANCEOF);
                 if (!empty($attributes)) {
+                    if (static::$preventLazyLoading) {
+                        throw new \Strux\Component\Exceptions\Database\LazyLoadingViolationException(static::class, $key);
+                    }
                     $relation = $this->initializeRelationFromAttribute($attributes[0]);
                     $result = $relation->getResults();
                     $this->setRelation($key, $result);
@@ -223,9 +233,13 @@ abstract class Model
     {
         if ($this->_tableName !== null)
             return $this->_tableName;
-        $attributes = $this->reflection()->getAttributes(Table::class);
-        if (!empty($attributes))
-            return $this->_tableName = $attributes[0]->newInstance()->name;
+        $attributes = $this->reflection()->getAttributes(Entity::class);
+        if (!empty($attributes)) {
+            $entityAttr = $attributes[0]->newInstance();
+            if ($entityAttr->table !== null) {
+                return $this->_tableName = $entityAttr->table;
+            }
+        }
         $className = $this->reflection()->getShortName();
         return $this->_tableName = strtolower(preg_replace('/(?<=[a-z0-9])([A-Z])/', '_$1', $className)) . 's';
     }

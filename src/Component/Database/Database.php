@@ -215,7 +215,7 @@ class Database
     public function getConnection(string $type = 'write'): PDO
     {
         if (!isset($this->connections[$type]) || $this->connections[$type] === null) {
-            $this->logger?->warning("PDO connection ($type) was null, attempting to establish.");
+            $this->logger?->info("PDO connection ($type) was null, attempting to establish.");
             $this->establishConnection($type);
         }
         return $this->connections[$type];

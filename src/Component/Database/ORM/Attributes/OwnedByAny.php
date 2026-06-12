@@ -11,6 +11,7 @@ class OwnedByAny extends RelationAttribute
 {
     public function __construct(
         public string $typeColumn,
-        public string $idColumn
+        public string $idColumn,
+        public string $load = 'lazy'
     ) {}
 }

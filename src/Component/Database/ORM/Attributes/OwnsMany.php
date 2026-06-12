@@ -13,6 +13,7 @@ class OwnsMany extends RelationAttribute
         public string  $related,
         public ?string $foreignKey = null,
         public ?string $localKey = null,
+        public string  $load = 'lazy',
         public string  $onDelete = 'cascade',
         public string  $onUpdate = 'cascade'
     )

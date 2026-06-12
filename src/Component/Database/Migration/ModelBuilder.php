@@ -8,7 +8,7 @@ use ReflectionProperty;
 use Strux\Component\Database\Schema\Attributes\Column;
 use Strux\Component\Database\Schema\Attributes\Id;
 use Strux\Component\Database\Schema\Attributes\RenamedFrom;
-use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Entity;
 use Strux\Component\Database\Schema\Types\Field;
 
 class ModelBuilder
@@ -31,11 +31,11 @@ class ModelBuilder
     {
         $reflection = new ReflectionClass($this->modelClass);
 
-        $tableAttr = $reflection->getAttributes(Table::class)[0] ?? null;
-        if (!$tableAttr) {
+        $entityAttr = $reflection->getAttributes(Entity::class)[0] ?? null;
+        if (!$entityAttr || $entityAttr->newInstance()->table === null) {
             return [];
         }
-        $tableName = $tableAttr->newInstance()->name;
+        $tableName = $entityAttr->newInstance()->table;
 
         if (!$this->tableExists($tableName)) {
             return $this->createTableSql($tableName, $reflection);
@@ -321,9 +321,9 @@ class ModelBuilder
             $stmt = $this->db->query($dialect->buildShowColumnsQuery($tableName));
             $columns = [];
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $field = $row['Field'] ?? $row['name'];
-                $type = $row['Type'] ?? $row['type'];
-                $nullable = $row['Null'] ?? ($row['notnull'] ? 'NO' : 'YES'); // sqlite gives notnull=0/1
+                $field = $row['Field'] ?? $row['name'] ?? null;
+                $type = $row['Type'] ?? $row['type'] ?? null;
+                $nullable = $row['Null'] ?? ((isset($row['notnull']) && $row['notnull']) ? 'NO' : 'YES');
                 $default = $row['Default'] ?? $row['dflt_value'] ?? null;
 
                 $columns[$field] = [

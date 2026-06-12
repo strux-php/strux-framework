@@ -12,6 +12,7 @@ class OwnsManyPoly extends RelationAttribute
     public function __construct(
         public string $related,
         public string $typeColumn,
-        public string $idColumn
+        public string $idColumn,
+        public string $load = 'lazy'
     ) {}
 }

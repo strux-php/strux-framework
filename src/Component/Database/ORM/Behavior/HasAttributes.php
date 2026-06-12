@@ -31,6 +31,18 @@ trait HasAttributes
      */
     public function fill(array $attributes): static
     {
+        $entityAttr = $this->reflection()->getAttributes(\Strux\Component\Database\Schema\Attributes\Entity::class)[0] ?? null;
+        if ($entityAttr && $entityAttr->newInstance()->mapper !== null) {
+            $mapperClass = $entityAttr->newInstance()->mapper;
+            if (class_exists($mapperClass)) {
+                $mapper = new $mapperClass();
+                if (method_exists($mapper, 'map')) {
+                    $mapper->map($attributes, $this);
+                    return $this;
+                }
+            }
+        }
+
         static $propertyMapCache = [];
         $class = static::class;
 
@@ -238,6 +250,17 @@ trait HasAttributes
 
     private function _getPublicPropertiesForDb(): array
     {
+        $entityAttr = $this->reflection()->getAttributes(\Strux\Component\Database\Schema\Attributes\Entity::class)[0] ?? null;
+        if ($entityAttr && $entityAttr->newInstance()->mapper !== null) {
+            $mapperClass = $entityAttr->newInstance()->mapper;
+            if (class_exists($mapperClass)) {
+                $mapper = new $mapperClass();
+                if (method_exists($mapper, 'reverseMap')) {
+                    return $mapper->reverseMap($this);
+                }
+            }
+        }
+
         $reflection = new ReflectionClass($this);
         $data = [];
         foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {

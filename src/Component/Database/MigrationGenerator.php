@@ -11,7 +11,7 @@ use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionException;
 use Strux\Component\Config\Config;
-use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Entity;
 use Strux\Component\Database\Migration\Blueprint;
 use Strux\Component\Database\Migration\MigrationWriter;
 use Strux\Component\Database\Migration\ModelBuilder;
@@ -48,7 +48,7 @@ class MigrationGenerator
 
         $availableModels = $this->scanModels();
 
-        echo "Found " . count($availableModels) . " models with #[Table] attribute.\n";
+        echo "Found " . count($availableModels) . " models with #[Entity] attribute.\n";
         echo "Generating migration for " . ($targetModel ? "model '$targetModel'" : "all models") . ".\n";
         echo "----------------------------------------\n";
         echo "src Path: " . $this->srcPath . "\n";
@@ -145,11 +145,11 @@ class MigrationGenerator
     private function getExistingIndexes(string $modelClass): array
     {
         $reflection = new ReflectionClass($modelClass);
-        $tableAttribute = $reflection->getAttributes(Table::class)[0] ?? null;
-        if (!$tableAttribute) {
+        $entityAttribute = $reflection->getAttributes(Entity::class)[0] ?? null;
+        if (!$entityAttribute) {
             return [];
         }
-        $tableName = $tableAttribute->newInstance()->name;
+        $tableName = $entityAttribute->newInstance()->table;
 
         try {
             $stmt = $this->db->query("SHOW INDEX FROM `$tableName`");
@@ -164,7 +164,7 @@ class MigrationGenerator
     }
 
     /**
-     * Recursively scans the src/Domain directory for classes with #[Table] attributes.
+     * Recursively scans the src/Domain directory for classes with #[Entity] attributes.
      */
     private function scanModels(): array
     {
@@ -187,7 +187,7 @@ class MigrationGenerator
                 if (class_exists($className)) {
                     try {
                         $reflection = new ReflectionClass($className);
-                        if (!$reflection->isAbstract() && !empty($reflection->getAttributes(Table::class))) {
+                        if (!$reflection->isAbstract() && !empty($reflection->getAttributes(Entity::class))) {
                             echo "Scanning model: $className\n";
                             $models[] = $className;
                         }

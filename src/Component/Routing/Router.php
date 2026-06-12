@@ -7,7 +7,7 @@ namespace Strux\Component\Routing;
 use Closure;
 use InvalidArgumentException;
 use Psr\Http\Message\ServerRequestInterface;
-use Strux\Component\Exceptions\HttpMethodNotAllowedException;
+use Strux\Component\Exceptions\Http\HttpMethodNotAllowedException;
 use Strux\Component\Exceptions\RouteNotFoundException;
 use Strux\Component\Exceptions\RouteParameterTypeMismatchException;
 

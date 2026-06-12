@@ -136,13 +136,13 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Entity;
 use Strux\Component\Database\Schema\Attributes\Column;
 use Strux\Component\Database\Schema\Attributes\Id;
 use Strux\Component\Database\Schema\Types\Field;
 use Strux\Component\Database\ORM\Model;
 
-#[Table('{$tableName}')]
+#[Entity(table: '{$tableName}')]
 class {$className} extends Model
 {
     {$idProperty}
@@ -439,14 +439,14 @@ use DateTimeInterface;
 use Strux\Auth\Traits\WillAuthenticate;
 use Strux\Component\Database\Schema\Attributes\Column;
 use Strux\Component\Database\Schema\Attributes\Id;
-use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Entity;
 use Strux\Component\Database\Schema\Attributes\Unique;
 use Strux\Component\Database\Schema\Types\Field;
 use Strux\Component\Database\ORM\Attributes\OwnedByMany;
 use Strux\Component\Database\ORM\Model;
 use Strux\Support\Collection;
 
-#[Table('users')]
+#[Entity(table: 'users')]
 class User extends Model
 {
     use WillAuthenticate;
@@ -520,13 +520,13 @@ namespace {$namespace};
 
 use Strux\Component\Database\Schema\Attributes\Column;
 use Strux\Component\Database\Schema\Attributes\Id;
-use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Entity;
 use Strux\Component\Database\Schema\Attributes\Unique;
 use Strux\Component\Database\ORM\Attributes\OwnedByMany;
 use Strux\Component\Database\ORM\Model;
 use Strux\Support\Collection;
 
-#[Table('roles')]
+#[Entity(table: 'roles')]
 class Roles extends Model
 {
     #[Id, Column]
@@ -562,13 +562,13 @@ namespace {$namespace};
 
 use Strux\Component\Database\Schema\Attributes\Column;
 use Strux\Component\Database\Schema\Attributes\Id;
-use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Entity;
 use Strux\Component\Database\Schema\Attributes\Unique;
 use Strux\Component\Database\ORM\Attributes\OwnedByMany;
 use Strux\Component\Database\ORM\Model;
 use Strux\Support\Collection;
 
-#[Table('permissions')]
+#[Entity(table: 'permissions')]
 class Permissions extends Model
 {
     #[Id, Column]
@@ -662,3 +662,4 @@ PHP;
         }
     }
 }
+

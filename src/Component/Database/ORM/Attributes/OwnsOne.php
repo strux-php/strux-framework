@@ -13,6 +13,7 @@ class OwnsOne extends RelationAttribute
         public string  $related,
         public ?string $foreignKey = null,
         public ?string $localKey = null,
+        public string  $load = 'lazy',
         public string  $onDelete = 'restrict',
         public string  $onUpdate = 'cascade'
     )
