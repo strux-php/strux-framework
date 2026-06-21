@@ -69,7 +69,11 @@ class MigrationWriter
             if (preg_match('/ALTER TABLE `?([^`\s]+)`? ADD COLUMN `?([^`\s]+)`?/i', $query, $matches)) {
                 $table = $matches[1];
                 $column = $matches[2];
-                $down[] = "ALTER TABLE `$table` DROP COLUMN `$column`;";
+                if ($dialect) {
+                    $down[] = $dialect->buildDropColumnQuery($table, $column) . ';';
+                } else {
+                    $down[] = "ALTER TABLE `$table` DROP COLUMN `$column`;";
+                }
                 continue;
             }
 
@@ -77,7 +81,11 @@ class MigrationWriter
             if (preg_match('/ALTER TABLE `?([^`\s]+)`? ADD CONSTRAINT `?([^`\s]+)`?/i', $query, $matches)) {
                 $table = $matches[1];
                 $constraint = $matches[2];
-                $down[] = "ALTER TABLE `$table` DROP FOREIGN KEY `$constraint`;";
+                if ($dialect) {
+                    $down[] = $dialect->buildDropForeignKeyQuery($table, $constraint) . ';';
+                } else {
+                    $down[] = "ALTER TABLE `$table` DROP FOREIGN KEY `$constraint`;";
+                }
                 continue;
             }
 

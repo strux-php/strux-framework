@@ -94,6 +94,11 @@ class PostgresDialect extends SqlDialect
         return "-- ALTER TABLE " . $this->quoteTable($table) . " MODIFY COLUMN {$definition} (Skipped by Postgres dialect)";
     }
 
+    public function buildDropForeignKeyQuery(string $table, string $constraint): string
+    {
+        return "ALTER TABLE " . $this->quoteTable($table) . " DROP CONSTRAINT " . $this->quote($constraint);
+    }
+
     public function translateType(string $type): string
     {
         $type = strtoupper($type);

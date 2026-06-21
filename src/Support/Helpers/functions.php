@@ -547,3 +547,15 @@ if (!function_exists('dd')) {
         HtmlDumper::dd(...$vars);
     }
 }
+
+if (!function_exists('user')) {
+    /**
+     * Get the currently authenticated user.
+     * 
+     * @return \Strux\Auth\Entity\User|\App\Domain\Identity\Entity\User|null
+     */
+    function user()
+    {
+        return auth()->user();
+    }
+}

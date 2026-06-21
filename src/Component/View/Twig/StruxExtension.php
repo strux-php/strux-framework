@@ -28,8 +28,9 @@ class StruxExtension extends AbstractExtension
             new TwigFunction('request', 'request'),
 
             // --- Authentication ---
-            // Usage in Twig: {{ auth().user().firstname }}
+            // Usage in Twig: {{ auth().user().firstname }} or {{ user().firstname }}
             new TwigFunction('auth', 'auth'),
+            new TwigFunction('user', 'user'),
 
             // --- Session & Flash ---
             // Usage in Twig: {{ flash().show() | raw }}

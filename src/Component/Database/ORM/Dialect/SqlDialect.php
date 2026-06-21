@@ -219,6 +219,16 @@ abstract class SqlDialect
         return "ALTER TABLE " . $this->quoteTable($table) . " MODIFY COLUMN {$definition};";
     }
 
+    public function buildDropColumnQuery(string $table, string $column): string
+    {
+        return "ALTER TABLE " . $this->quoteTable($table) . " DROP COLUMN " . $this->quote($column);
+    }
+
+    public function buildDropForeignKeyQuery(string $table, string $constraint): string
+    {
+        return "ALTER TABLE " . $this->quoteTable($table) . " DROP FOREIGN KEY " . $this->quote($constraint);
+    }
+
     /**
      * Translate generic framework types to dialect-specific types.
      */

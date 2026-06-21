@@ -77,7 +77,7 @@ class ClassFinder
         $fp = fopen($filePath, 'r');
         $class = $namespace = $buffer = '';
         $i = 0;
-        
+
         while (!$class) {
             if (feof($fp)) break;
 
@@ -99,21 +99,35 @@ class ClassFinder
                 }
 
                 if ($tokens[$i][0] === T_CLASS) {
-                    for ($j = $i + 1; $j < count($tokens); $j++) {
-                        if ($tokens[$j] === '{') {
-                            $class = $tokens[$i+2][1];
-                            break;
+                    $isResolution = false;
+                    for ($k = $i - 1; $k >= 0; $k--) {
+                        if (is_array($tokens[$k]) && $tokens[$k][0] === T_WHITESPACE) continue;
+                        if (is_array($tokens[$k]) && $tokens[$k][0] === T_DOUBLE_COLON) {
+                            $isResolution = true;
+                        }
+                        break;
+                    }
+
+                    if (!$isResolution) {
+                        for ($j = $i + 1; $j < count($tokens); $j++) {
+                            if ($tokens[$j] === '{' || (is_array($tokens[$j]) && in_array($tokens[$j][0], [T_EXTENDS, T_IMPLEMENTS]))) {
+                                break;
+                            }
+                            if (is_array($tokens[$j]) && $tokens[$j][0] === T_STRING) {
+                                $class = $tokens[$j][1];
+                                break 2;
+                            }
                         }
                     }
                 }
             }
         }
         fclose($fp);
-        
+
         if ($class === '') {
             return null;
         }
-        
+
         return $namespace ? $namespace . '\\' . $class : $class;
     }
 }

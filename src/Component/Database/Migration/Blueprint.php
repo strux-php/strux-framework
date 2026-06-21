@@ -284,7 +284,8 @@ class Blueprint
                     if (self::needsModification($existingCols[$foreignPivotKey], $fk1Type)) {
                         $constraintName = "fk_{$pivotTable}_{$foreignPivotKey}";
                         if (in_array($constraintName, $existingConstraints)) {
-                            $sql["{$pivotTable}_drop_fk1"] = "ALTER TABLE `{$pivotTable}` DROP FOREIGN KEY `{$constraintName}`;";
+                            $dropQuery = $dialect->buildDropForeignKeyQuery($pivotTable, $constraintName);
+                            $sql["{$pivotTable}_drop_fk1"] = $dropQuery . ";";
                         }
                         $sql["{$pivotTable}_mod1"] = $dialect->buildModifyColumnQuery($pivotTable, "`{$foreignPivotKey}` $fk1Type NOT NULL");
                     }
@@ -294,7 +295,8 @@ class Blueprint
                     if (self::needsModification($existingCols[$relatedPivotKey], $fk2Type)) {
                         $constraintName = "fk_{$pivotTable}_{$relatedPivotKey}";
                         if (in_array($constraintName, $existingConstraints)) {
-                            $sql["{$pivotTable}_drop_fk2"] = "ALTER TABLE `{$pivotTable}` DROP FOREIGN KEY `{$constraintName}`;";
+                            $dropQuery = $dialect->buildDropForeignKeyQuery($pivotTable, $constraintName);
+                            $sql["{$pivotTable}_drop_fk2"] = $dropQuery . ";";
                         }
                         $sql["{$pivotTable}_mod2"] = $dialect->buildModifyColumnQuery($pivotTable, "`{$relatedPivotKey}` $fk2Type NOT NULL");
                     }

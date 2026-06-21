@@ -8,6 +8,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 use Psr\Http\Message\UriInterface;
 use Strux\Component\Http\Traits\SanitizesData;
+use Strux\Support\Helpers\Utils;
 
 /**
  * Class Request
@@ -89,7 +90,7 @@ class Request
             return $default;
         }
         if ($type !== null && $value !== $default) {
-            return $this->castValue($value, $type);
+            return Utils::castValue($value, $type);
         }
         return $value;
     }
@@ -125,7 +126,7 @@ class Request
         $value = $this->request->getQueryParams()[$key] ?? $default;
 
         if ($type !== null && $value !== $default) {
-            return $this->castValue($value, $type);
+            return Utils::castValue($value, $type);
         }
         return $value;
     }
@@ -436,27 +437,6 @@ class Request
     public function getReferrer(): string
     {
         return $this->getRefer();
-    }
-
-    /**
-     * Helper to cast a value to a specific type.
-     * @param mixed $value The value to cast.
-     * @param string $type The target type ('int', 'string', 'bool', 'float', 'array').
-     * @return mixed The casted value.
-     */
-    public function castValue(mixed $value, string $type): mixed
-    {
-        if ($value === null)
-            return null;
-
-        return match (strtolower($type)) {
-            'int', 'integer' => (int) $value,
-            'str', 'string' => (string) $value,
-            'bool', 'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
-            'float', 'double' => (float) $value,
-            'array' => (array) $value,
-            default => $value
-        };
     }
 
     /**
