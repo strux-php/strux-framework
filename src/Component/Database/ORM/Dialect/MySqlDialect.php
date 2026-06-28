@@ -105,4 +105,13 @@ class MySqlDialect extends SqlDialect
     {
         return "DROP INDEX " . $this->quote($indexName) . " ON " . $this->quoteTable($table);
     }
+
+    public function normalizeType(string $type): string
+    {
+        $type = parent::normalizeType($type);
+
+        $type = str_replace('tinyint(1)', 'boolean', $type);
+
+        return $type;
+    }
 }

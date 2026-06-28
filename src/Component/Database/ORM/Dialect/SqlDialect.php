@@ -236,4 +236,19 @@ abstract class SqlDialect
     {
         return $type; // Default (MySQL-compatible)
     }
+
+    /**
+     * Normalize a database type string to a canonical form for comparison.
+     * Strips whitespace within parentheses, lowercases, and maps type names
+     * to a common baseline.
+     */
+    public function normalizeType(string $type): string
+    {
+        $type = strtolower(trim($type));
+        $type = preg_replace('/\s*\(\s*/', '(', $type);
+        $type = preg_replace('/\s*\)\s*/', ')', $type);
+        $type = preg_replace('/\s+,\s*/', ',', $type);
+        $type = preg_replace('/\s+/', ' ', $type);
+        return $type;
+    }
 }

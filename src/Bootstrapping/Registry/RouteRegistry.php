@@ -19,71 +19,71 @@ use Strux\Foundation\Application;
 
 class RouteRegistry extends ServiceRegistry
 {
-    public function build(): void
-    {
-        $this->container->singleton(
-            Router::class,
-            static fn(ContainerInterface $c) => new Router(
-                currentRequest: $c->get(ServerRequestInterface::class)
-            )
-        );
+	public function build(): void
+	{
+		$this->container->singleton(
+			Router::class,
+			static fn(ContainerInterface $c) => new Router(
+				currentRequest: $c->get(ServerRequestInterface::class)
+			)
+		);
 
-        $this->container->singleton(
-            RouterLoader::class,
-            static fn(ContainerInterface $c) => new RouterLoader(
-                router: $c->get(Router::class),
-                container: $c,
-                logger: $c->get(LoggerInterface::class)
-            )
-        );
+		$this->container->singleton(
+			RouterLoader::class,
+			static fn(ContainerInterface $c) => new RouterLoader(
+				router: $c->get(Router::class),
+				container: $c,
+				logger: $c->get(LoggerInterface::class)
+			)
+		);
 
-        $this->container->singleton(
-            ParameterResolver::class,
-            static fn(ContainerInterface $c) => new ParameterResolver(
-                container: $c
-            )
-        );
+		$this->container->singleton(
+			ParameterResolver::class,
+			static fn(ContainerInterface $c) => new ParameterResolver(
+				container: $c
+			)
+		);
 
-        $this->container->singleton(
-            RouteDispatcher::class,
-            static fn(ContainerInterface $c) => new RouteDispatcher(
-                container: $c,
-                router: $c->get(Router::class),
-                parameterResolver: $c->get(ParameterResolver::class)
-            )
-        );
-    }
+		$this->container->singleton(
+			RouteDispatcher::class,
+			static fn(ContainerInterface $c) => new RouteDispatcher(
+				container: $c,
+				router: $c->get(Router::class),
+				parameterResolver: $c->get(ParameterResolver::class)
+			)
+		);
+	}
 
-    /**
-     * @throws ContainerExceptionInterface
-     * @throws ReflectionException
-     * @throws NotFoundExceptionInterface
-     */
-    public function init(Application $app): void
-    {
-        $router = $app->getRouter();
-        /** @var RouterLoader $routerLoader */
-        $routerLoader = $this->container->get(RouterLoader::class);
+	/**
+	 * @throws ContainerExceptionInterface
+	 * @throws ReflectionException
+	 * @throws NotFoundExceptionInterface
+	 */
+	public function init(Application $app): void
+	{
+		$router = $app->getRouter();
+		/** @var RouterLoader $routerLoader */
+		$routerLoader = $this->container->get(RouterLoader::class);
 
-        /** @var DirectoryInterface $dirs */
-        $dirs = $this->container->get(DirectoryInterface::class);
+		/** @var DirectoryInterface $dirs */
+		$dirs = $this->container->get(DirectoryInterface::class);
 
-        // 1. Load legacy route files
-        $legacyRoutesPath = $dirs->get('routes') . '/web.php';
-        if (file_exists($legacyRoutesPath)) {
-            require $legacyRoutesPath;
-        }
+		// Legacy route files
+		$legacyRoutesPath = $dirs->get('routes') . '/web.php';
+		if (file_exists($legacyRoutesPath)) {
+			require $legacyRoutesPath;
+		}
 
-        // 2. Auto-Discover Attribute-Based Web Controllers
-        $webControllerDir = $dirs->get('controllers');
-        if (is_dir($webControllerDir)) {
-            $routerLoader->loadFromDirectory($webControllerDir, isApi: false);
-        }
+		// Auto-Discover Attribute-Based Web Controllers
+		$webControllerDir = $dirs->get('controllers');
+		if (is_dir($webControllerDir)) {
+			$routerLoader->loadFromDirectory($webControllerDir, isApi: false);
+		}
 
-        // 3. Auto-Discover Attribute-Based API Controllers
-        $apiControllerDir = $dirs->get('apiControllers');
-        if (is_dir($apiControllerDir)) {
-            $routerLoader->loadFromDirectory($apiControllerDir, isApi: true);
-        }
-    }
+		// Auto-Discover Attribute-Based API Controllers
+		$apiControllerDir = $dirs->get('apiControllers');
+		if (is_dir($apiControllerDir)) {
+			$routerLoader->loadFromDirectory($apiControllerDir, isApi: true);
+		}
+	}
 }

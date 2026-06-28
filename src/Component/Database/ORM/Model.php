@@ -248,12 +248,24 @@ abstract class Model
     {
         if ($this->_primaryKeyName !== null)
             return $this->_primaryKeyName;
+        $keys = $this->getPrimaryKeys();
+        return $this->_primaryKeyName = $keys[0] ?? 'id';
+    }
+
+    public function getPrimaryKeys(): array
+    {
+        $keys = [];
         foreach ($this->reflection()->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
             if (!empty($property->getAttributes(Id::class))) {
-                return $this->_primaryKeyName = $property->getName();
+                $keys[] = $property->getName();
             }
         }
-        return $this->_primaryKeyName = 'id';
+        return $keys ?: ['id'];
+    }
+
+    public function isCompositeKey(): bool
+    {
+        return count($this->getPrimaryKeys()) > 1;
     }
 
     protected function reflection(): ReflectionClass
@@ -350,10 +362,11 @@ abstract class Model
             }
         }
         $attributesToSave = $prepared;
+        $pkNames = $this->getPrimaryKeys();
         $dirty = [];
 
         foreach ($attributesToSave as $key => $value) {
-            if ($key !== $this->getPrimaryKey() && (!array_key_exists($key, $this->_original) || $this->_original[$key] !== $value)) {
+            if (!in_array($key, $pkNames) && (!array_key_exists($key, $this->_original) || $this->_original[$key] !== $value)) {
                 $dirty[$key] = $value;
             }
         }
@@ -363,16 +376,20 @@ abstract class Model
 
         $this->fireModelEvent(new Updating($this));
 
-        $pkValue = $this->{$this->getPrimaryKey()} ?? null;
-        if ($pkValue === null)
-            throw new RuntimeException("Cannot update without primary key.");
-
-        $bindings = array_values($dirty);
-        $bindings[] = $pkValue;
-
         $grammar = $this->getDialect();
+        $bindings = array_values($dirty);
+        $pkConditions = [];
+
+        foreach ($pkNames as $pkName) {
+            $pkValue = $this->{$pkName} ?? null;
+            if ($pkValue === null)
+                throw new RuntimeException("Cannot update without primary key value for '$pkName'.");
+            $pkConditions[] = $grammar->quote($pkName) . " = ?";
+            $bindings[] = $pkValue;
+        }
+
         $sql = $grammar->buildUpdateQuery($this->getTable(), array_keys($dirty));
-        $sql .= " WHERE " . $grammar->quote($this->getPrimaryKey()) . " = ?";
+        $sql .= " WHERE " . implode(' AND ', $pkConditions);
         $stmt = $this->_execute($sql, $bindings);
         $success = $stmt->rowCount() >= 0;
 
@@ -402,38 +419,42 @@ abstract class Model
             }
         }
         $attributesToSave = $prepared;
-        $pkName = $this->getPrimaryKey();
+        $pkNames = $this->getPrimaryKeys();
 
-        if (array_key_exists($pkName, $attributesToSave) && ($attributesToSave[$pkName] === null || $attributesToSave[$pkName] === '')) {
-            $pkProperty = $this->reflection()->getProperty($pkName);
-            $idAttr = ($pkProperty->getAttributes(Id::class)[0] ?? null)?->newInstance();
+        foreach ($pkNames as $pkName) {
+            $hasNullValue = array_key_exists($pkName, $attributesToSave) && ($attributesToSave[$pkName] === null || $attributesToSave[$pkName] === '');
 
-            if ($idAttr && $idAttr->autoGenerate !== 'none') {
-                $type = $pkProperty->getType();
-                if ($type instanceof \ReflectionNamedType) {
-                    $typeName = $type->getName();
-                    if (!in_array($typeName, ['string', 'mixed', 'self', 'parent'], true)) {
-                        throw new RuntimeException(
-                            sprintf(
-                                "Cannot auto-generate a %s for field '%s': expected string-compatible type, got %s.",
-                                $idAttr->autoGenerate,
-                                $pkName,
-                                $typeName
-                            )
-                        );
+            if (!array_key_exists($pkName, $attributesToSave) || $hasNullValue) {
+                $pkProperty = $this->reflection()->getProperty($pkName);
+                $idAttr = ($pkProperty->getAttributes(Id::class)[0] ?? null)?->newInstance();
+
+                if ($idAttr && $idAttr->autoGenerate !== 'none') {
+                    $type = $pkProperty->getType();
+                    if ($type instanceof \ReflectionNamedType) {
+                        $typeName = $type->getName();
+                        if (!in_array($typeName, ['string', 'mixed', 'self', 'parent'], true)) {
+                            throw new RuntimeException(
+                                sprintf(
+                                    "Cannot auto-generate a %s for field '%s': expected string-compatible type, got %s.",
+                                    $idAttr->autoGenerate,
+                                    $pkName,
+                                    $typeName
+                                )
+                            );
+                        }
                     }
+
+                    $generated = match ($idAttr->autoGenerate) {
+                        'uuid' => Utils::uuid(),
+                        'ulid' => Utils::ulid(),
+                        default => throw new RuntimeException("Unknown autoGenerate option: {$idAttr->autoGenerate}")
+                    };
+
+                    $this->{$pkName} = $generated;
+                    $attributesToSave[$pkName] = $generated;
+                } elseif ($hasNullValue && !$idAttr?->autoincrement) {
+                    unset($attributesToSave[$pkName]);
                 }
-
-                $generated = match ($idAttr->autoGenerate) {
-                    'uuid' => Utils::uuid(),
-                    'ulid' => Utils::ulid(),
-                    default => throw new RuntimeException("Unknown autoGenerate option: {$idAttr->autoGenerate}")
-                };
-
-                $this->{$pkName} = $generated;
-                $attributesToSave[$pkName] = $generated;
-            } else {
-                unset($attributesToSave[$pkName]);
             }
         }
 
@@ -450,16 +471,20 @@ abstract class Model
         $sql = $grammar->buildInsertQuery($this->getTable(), $columns, $placeholders);
         $this->_execute($sql, $bindings);
 
-        $id = null;
-        try {
-            $id = $this->db->lastInsertId();
-        } catch (\PDOException $e) {
-            // Postgres throws 'lastval is not yet defined' if no sequence was advanced.
-        }
+        // Only set lastInsertId for single autoincrement PKs
+        if (count($pkNames) === 1) {
+            $pkName = $pkNames[0];
+            $id = null;
+            try {
+                $id = $this->db->lastInsertId();
+            } catch (\PDOException $e) {
+                // Postgres throws 'lastval is not yet defined' if no sequence was advanced.
+            }
 
-        if ($id && property_exists($this, $this->getPrimaryKey())) {
-            if (!isset($attributesToSave[$this->getPrimaryKey()]) || $attributesToSave[$this->getPrimaryKey()] === null) {
-                $this->{$this->getPrimaryKey()} = is_numeric($id) ? (int) $id : $id;
+            if ($id && property_exists($this, $pkName)) {
+                if (!isset($attributesToSave[$pkName]) || $attributesToSave[$pkName] === null) {
+                    $this->{$pkName} = is_numeric($id) ? (int) $id : $id;
+                }
             }
         }
         $this->_exists = true;
@@ -479,8 +504,17 @@ abstract class Model
         $this->fireModelEvent(new Deleting($this));
 
         $grammar = $this->getDialect();
-        $sql = $grammar->buildDeleteQuery($this->getTable()) . " WHERE " . $grammar->quote($this->getPrimaryKey()) . " = ?";
-        $stmt = $this->_execute($sql, [$this->{$this->getPrimaryKey()}]);
+        $pkNames = $this->getPrimaryKeys();
+        $pkConditions = [];
+        $pkValues = [];
+
+        foreach ($pkNames as $pkName) {
+            $pkConditions[] = $grammar->quote($pkName) . " = ?";
+            $pkValues[] = $this->{$pkName};
+        }
+
+        $sql = $grammar->buildDeleteQuery($this->getTable()) . " WHERE " . implode(' AND ', $pkConditions);
+        $stmt = $this->_execute($sql, $pkValues);
 
         if ($stmt->rowCount() > 0) {
             $this->_exists = false;
@@ -497,9 +531,22 @@ abstract class Model
         if (empty($ids))
             return 0;
 
+        $pkNames = $instance->getPrimaryKeys();
+
+        if (count($pkNames) > 1) {
+            $count = 0;
+            foreach ($ids as $id) {
+                $model = static::find($id);
+                if ($model && $model->delete()) {
+                    $count++;
+                }
+            }
+            return $count;
+        }
+
         $grammar = $instance->getDialect();
         $placeholders = implode(', ', array_fill(0, count($ids), '?'));
-        $sql = $grammar->buildDeleteQuery($instance->getTable()) . " WHERE " . $grammar->quote($instance->getPrimaryKey()) . " IN ($placeholders)";
+        $sql = $grammar->buildDeleteQuery($instance->getTable()) . " WHERE " . $grammar->quote($pkNames[0]) . " IN ($placeholders)";
         try {
             $stmt = $instance->_execute($sql, $ids);
         } catch (DatabaseException $e) {
@@ -615,6 +662,11 @@ abstract class Model
     public function getLastInsertId(?string $name = null): string|false
     {
         return $this->db->lastInsertId($name);
+    }
+
+    public function removeOriginalKey(string $key): void
+    {
+        unset($this->_original[$key]);
     }
 
     public function __sleep(): array

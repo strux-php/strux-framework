@@ -45,14 +45,13 @@ class AuthorizationMiddleware implements MiddlewareInterface
 		ServerRequestInterface $request,
 		RequestHandlerInterface $handler
 	): ResponseInterface {
-		if ($this->authManager->sentinel('web')->isAuthenticated()) {
-			$userId = $this->authManager->sentinel('web')->id();
-			$this->logger?->info("[AuthManagerMiddleware] User with ID {$userId} is authenticated. Proceeding.");
+		$sentinel = $this->authManager->sentinel('web');
+		$user = $sentinel->user();
 
-			$user = $this->authManager->sentinel('web')->user();
-			if ($user) {
-				$request = $request->withAttribute(User::class, $user);
-			}
+		if ($user) {
+			$request = $request->withAttribute('user', $user);
+
+			$this->logger?->info("[AuthorizationMiddleware] User with ID {$sentinel->id()} is authenticated. Proceeding.");
 
 			$routeInfo = $request->getAttribute('route');
 
@@ -61,10 +60,10 @@ class AuthorizationMiddleware implements MiddlewareInterface
 
 			if ($controller && $method) {
 				$reflectionClass = new ReflectionClass($controller);
-				$this->checkAuthorization($reflectionClass);
+				$this->checkAuthorization($reflectionClass, $user);
 
 				if ($reflectionClass->hasMethod($method)) {
-					$this->checkAuthorization($reflectionClass->getMethod($method));
+					$this->checkAuthorization($reflectionClass->getMethod($method), $user);
 				}
 			}
 			return $handler->handle($request);
@@ -134,20 +133,13 @@ class AuthorizationMiddleware implements MiddlewareInterface
 	/**
 	 * @throws AuthorizationException
 	 */
-	private function checkAuthorization(ReflectionClass|ReflectionMethod $reflector): void
+	private function checkAuthorization(ReflectionClass|ReflectionMethod $reflector, User $user): void
 	{
 		$attributes = $reflector->getAttributes(Authorize::class);
 
 		foreach ($attributes as $attribute) {
 			/** @var Authorize $authAttr */
 			$authAttr = $attribute->newInstance();
-
-			/** @var User $user */
-			$user = $this->authManager->sentinel('web')->user();
-
-			if (!$user) {
-				throw new AuthorizationException("Unauthenticated.", 401);
-			}
 
 			// Check Roles
 			if (!empty($authAttr->roles)) {

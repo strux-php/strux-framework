@@ -179,6 +179,22 @@ class SqlServerDialect extends SqlDialect
         return "DROP INDEX {$this->quote($indexName)} ON {$this->quoteTable($table)}";
     }
 
+    public function normalizeType(string $type): string
+    {
+        $type = parent::normalizeType($type);
+
+        $type = str_replace('nvarchar', 'varchar', $type);
+        $type = str_replace('nchar', 'char', $type);
+        $type = str_replace('datetime2', 'datetime', $type);
+        $type = str_replace('bit', 'tinyint(1)', $type);
+        $type = str_replace('nvarchar(max)', 'text', $type);
+        $type = str_replace('varbinary(max)', 'blob', $type);
+        $type = str_replace('uniqueidentifier', 'char(36)', $type);
+        $type = str_replace('identity(1,1)', 'auto_increment', $type);
+
+        return $type;
+    }
+
     public function translateType(string $type): string
     {
         $type = strtoupper($type);

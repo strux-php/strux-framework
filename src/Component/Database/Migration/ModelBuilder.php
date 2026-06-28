@@ -49,6 +49,7 @@ class ModelBuilder
         $driver = $this->db ? $this->db->getAttribute(PDO::ATTR_DRIVER_NAME) : 'mysql';
         return match ($driver) {
             'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+            'mariadb' => new \Strux\Component\Database\ORM\Dialect\MariaDbDialect(),
             'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
             'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
             'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
@@ -60,6 +61,15 @@ class ModelBuilder
     {
         $columns = [];
         $primaryKeys = [];
+        $pkCount = 0;
+        $autoincrementAssigned = false;
+
+        foreach ($reflection->getProperties() as $property) {
+            $idAttr = $property->getAttributes(Id::class)[0] ?? null;
+            if ($idAttr) {
+                $pkCount++;
+            }
+        }
 
         foreach ($reflection->getProperties() as $property) {
             $colAttr = $property->getAttributes(Column::class)[0] ?? null;
@@ -70,7 +80,11 @@ class ModelBuilder
                 $instance = $colAttr->newInstance();
                 $colName = $instance->name ?? $property->getName();
 
-                $definition = $this->buildColumnDefinition($property, $instance, $idAttr?->newInstance());
+                $isFirstAutoIncrement = $idAttr !== null && !$autoincrementAssigned && $idAttr->newInstance()->autoincrement;
+                $definition = $this->buildColumnDefinition($property, $instance, $idAttr?->newInstance(), $isFirstAutoIncrement);
+                if ($isFirstAutoIncrement) {
+                    $autoincrementAssigned = true;
+                }
 
                 if ($idAttr) {
                     $primaryKeys[] = "`$colName`";
@@ -97,6 +111,7 @@ class ModelBuilder
         $driver = $this->db ? $this->db->getAttribute(PDO::ATTR_DRIVER_NAME) : 'mysql';
         $dialect = match ($driver) {
             'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+            'mariadb' => new \Strux\Component\Database\ORM\Dialect\MariaDbDialect(),
             'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
             'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
             'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
@@ -122,6 +137,7 @@ class ModelBuilder
 
         $queries = [];
         $claimedDbColumns = [];
+        $autoincrementAssigned = false;
 
         foreach ($reflection->getProperties() as $property) {
             $colAttr = $property->getAttributes(Column::class)[0] ?? null;
@@ -147,7 +163,11 @@ class ModelBuilder
                 }
             }
 
-            $definition = $this->buildColumnDefinition($property, $colInstance, $idAttr?->newInstance());
+            $isFirstAutoIncrement = $idAttr !== null && !$autoincrementAssigned && $idAttr->newInstance()->autoincrement;
+            $definition = $this->buildColumnDefinition($property, $colInstance, $idAttr?->newInstance(), $isFirstAutoIncrement);
+            if ($isFirstAutoIncrement) {
+                $autoincrementAssigned = true;
+            }
 
             if (!array_key_exists($targetDbColumn, $dbColumns)) {
                 $queries[] = $this->getDialect()->buildAddColumnQuery($tableName, $definition);
@@ -159,7 +179,7 @@ class ModelBuilder
                     $queries[] = $this->getDialect()->buildRenameColumnQuery($tableName, $targetDbColumn, $currentColName);
                 }
 
-                if ($this->needsModification($dbColumns[$targetDbColumn], $property, $colInstance, (bool) $idAttr)) {
+                if ($this->needsModification($dbColumns[$targetDbColumn], $property, $colInstance, (bool) $idAttr, $this->getDialect())) {
                     $queries[] = $this->getDialect()->buildModifyColumnQuery($tableName, $definition);
                 }
             }
@@ -191,7 +211,7 @@ class ModelBuilder
         return (string) $type;
     }
 
-    private function buildColumnDefinition(ReflectionProperty $property, Column $columnAttr, ?Id $idAttr): string
+    private function buildColumnDefinition(ReflectionProperty $property, Column $columnAttr, ?Id $idAttr, bool $isFirstAutoIncrementPk = true): string
     {
         $colName = $columnAttr->name ?? $property->getName();
         $type = $this->mapType(
@@ -206,7 +226,7 @@ class ModelBuilder
         $definition = "`$colName` $type";
 
         $isPk = $idAttr !== null;
-        if ($isPk && $idAttr?->autoincrement && (str_contains($type, 'INT') || str_contains($type, 'int'))) {
+        if ($isPk && $idAttr?->autoincrement && $isFirstAutoIncrementPk && (str_contains($type, 'INT') || str_contains($type, 'int'))) {
             $definition .= " AUTO_INCREMENT";
         }
 
@@ -246,7 +266,7 @@ class ModelBuilder
         return (string) $value;
     }
 
-    private function needsModification(array $dbDetails, ReflectionProperty $property, Column $columnAttr, bool $isPk): bool
+    private function needsModification(array $dbDetails, ReflectionProperty $property, Column $columnAttr, bool $isPk, \Strux\Component\Database\ORM\Dialect\SqlDialect $dialect): bool
     {
         $phpType = $this->getPhpTypeName($property);
 
@@ -264,46 +284,34 @@ class ModelBuilder
         $currentType = $dbDetails['type'];
         $currentNull = $dbDetails['nullable'];
 
-        // 1. Type Check
-        if (str_starts_with(strtolower($sqlType), 'enum')) {
-            $cleanCurrent = str_replace(' ', '', strtolower($currentType));
-            $cleanSql = str_replace(' ', '', strtolower($sqlType));
-            if ($cleanCurrent !== $cleanSql)
+        // 1. Type Check using dialect-normalized types
+        $normalizedCurrent = $dialect->normalizeType($currentType);
+        $normalizedSql = $dialect->normalizeType($sqlType);
+
+        if ($normalizedCurrent !== $normalizedSql) {
+            // For types where length/precision matters, do a full comparison
+            $baseCurrent = preg_replace('/\(.*?\)/', '', $normalizedCurrent);
+            $baseSql = preg_replace('/\(.*?\)/', '', $normalizedSql);
+
+            if ($baseCurrent !== $baseSql) {
                 return true;
-        } elseif (strtolower($currentType) !== strtolower($sqlType)) {
-            $cleanCurrent = preg_replace('/\(.*?\)/', '', strtolower($currentType));
-            $cleanSql = preg_replace('/\(.*?\)/', '', strtolower($sqlType));
+            }
 
-            // Postgres aliases
-            if ($cleanCurrent === 'character varying') $cleanCurrent = 'varchar';
-            if ($cleanCurrent === 'timestamp without time zone') $cleanCurrent = 'timestamp';
-            if ($cleanCurrent === 'timestamp with time zone') $cleanCurrent = 'timestamp';
-            if ($cleanCurrent === 'integer') $cleanCurrent = 'int';
-            if ($cleanCurrent === 'boolean') $cleanCurrent = 'tinyint';
-
-            // Handle unsigned difference
-            $cleanCurrent = trim(str_replace('unsigned', '', $cleanCurrent));
-            $cleanSqlBase = trim(str_replace('unsigned', '', $cleanSql));
-
-            if ($cleanCurrent !== $cleanSqlBase)
-                return true;
-
-            // Check signedness mismatch
+            // Same base type — check signedness mismatch
             $dbUnsigned = str_contains(strtolower($currentType), 'unsigned');
             $sqlUnsigned = str_contains(strtolower($sqlType), 'unsigned');
-            if ($dbUnsigned !== $sqlUnsigned)
+            if ($dbUnsigned !== $sqlUnsigned) {
                 return true;
+            }
 
-            // BUG FIX: If base types match but full types differ, lengths/precisions might have changed.
-            // Integer display widths (like INT(11) vs INT) can often be ignored, 
-            // but for VARCHAR, CHAR, and DECIMAL, the length/precision is critical.
-            $lengthMatters = in_array($cleanCurrent, ['varchar', 'char', 'decimal', 'float', 'double']);
+            // For varchar, char, decimal, float, double — length/precision differences matter
+            $lengthMatters = in_array($baseCurrent, ['varchar', 'char', 'decimal', 'float', 'double']);
             if ($lengthMatters) {
-                // Ensure spaces are stripped for a fair comparison like "decimal(10, 2)" vs "decimal(10,2)"
-                $normalizedCurrent = str_replace(' ', '', strtolower($currentType));
-                $normalizedSql = str_replace(' ', '', strtolower($sqlType));
-                if ($normalizedCurrent !== $normalizedSql)
+                $strippedCurrent = str_replace(' ', '', strtolower($currentType));
+                $strippedSql = str_replace(' ', '', strtolower($sqlType));
+                if ($strippedCurrent !== $strippedSql) {
                     return true;
+                }
             }
         }
 
@@ -331,6 +339,7 @@ class ModelBuilder
             $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
             $dialect = match ($driver) {
                 'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+                'mariadb' => new \Strux\Component\Database\ORM\Dialect\MariaDbDialect(),
                 'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
                 'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
                 'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
@@ -369,6 +378,7 @@ class ModelBuilder
             $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
             $dialect = match ($driver) {
                 'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+                'mariadb' => new \Strux\Component\Database\ORM\Dialect\MariaDbDialect(),
                 'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
                 'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
                 'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
@@ -387,6 +397,7 @@ class ModelBuilder
         $driver = $this->db->getAttribute(\PDO::ATTR_DRIVER_NAME);
         $dialect = match ($driver) {
             'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+            'mariadb' => new \Strux\Component\Database\ORM\Dialect\MariaDbDialect(),
             'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
             'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
             'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),

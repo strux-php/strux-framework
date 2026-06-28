@@ -94,6 +94,7 @@ trait HasQueryBuilder
 
             $this->_dialect = match($driver) {
                 'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+                'mariadb' => new \Strux\Component\Database\ORM\Dialect\MariaDbDialect(),
                 'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
                 'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
                 'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
@@ -537,10 +538,23 @@ trait HasQueryBuilder
     protected function find(mixed $id, mixed $includes = []): ?static
     {
         $builder = $this->_getQueryBuilderInstance();
-        $builder->where($this->getPrimaryKey(), $id);
+        $pkNames = $builder->getPrimaryKeys();
+
+        if (is_array($id) && count($pkNames) > 1) {
+            foreach ($pkNames as $pkName) {
+                $pkValue = $id[$pkName] ?? null;
+                if ($pkValue === null) {
+                    return null;
+                }
+                $builder->where($pkName, $pkValue);
+            }
+        } else {
+            $builder->where($pkNames[0], is_array($id) ? reset($id) : $id);
+        }
+
         if ($includes) {
             $includes = is_array($includes) ? $includes : [$includes];
-            $builder->include(...$includes);
+            $builder->with(...$includes);
         }
         return $builder->first();
     }

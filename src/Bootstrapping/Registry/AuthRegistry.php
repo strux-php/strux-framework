@@ -28,70 +28,72 @@ use Strux\Foundation\Application;
 
 class AuthRegistry extends ServiceRegistry
 {
-    public function build(): void
-    {
-        $this->container->singleton(
-            UserProviderInterface::class,
-            static fn(ContainerInterface $c) => new DatabaseUserProvider(
-                config: $c->get(Config::class)
-            )
-        );
+	public function build(): void
+	{
+		$this->container->singleton(
+			UserProviderInterface::class,
+			static fn(ContainerInterface $c) => new DatabaseUserProvider(
+				config: $c->get(Config::class)
+			)
+		);
 
-        $this->container->singleton(
-            JwtService::class,
-            static fn(ContainerInterface $c) => new JwtService(
-                config: $c->get(Config::class)->get('jwt')
-            )
-        );
+		$this->container->singleton(
+			JwtService::class,
+			static fn(ContainerInterface $c) => new JwtService(
+				config: $c->get(Config::class)->get('jwt')
+			)
+		);
 
-        $this->container->singleton(AuthManager::class, static function (ContainerInterface $c) {
-            $manager = new AuthManager($c, $c->get(Config::class));
+		$this->container->singleton(AuthManager::class, static function (ContainerInterface $c) {
+			$manager = new AuthManager($c, $c->get(Config::class));
 
-            $manager->extend('web', static function ($c) {
-                return new SessionSentinel(
-                    session: $c->get(SessionInterface::class),
-                    provider: $c->get(UserProviderInterface::class),
-                    events: $c->get(EventDispatcher::class)
-                );
-            });
+			$manager->extend('web', static function ($c) {
+				return new SessionSentinel(
+					session: $c->get(SessionInterface::class),
+					provider: $c->get(UserProviderInterface::class),
+					events: $c->get(EventDispatcher::class)
+				);
+			});
 
-            $manager->extend('api', static function ($c) {
-                return new TokenSentinel(
-                    jwtService: $c->get(JwtService::class),
-                    provider: $c->get(UserProviderInterface::class),
-                    request: $c->get(ServerRequestInterface::class)
-                );
-            });
+			$manager->extend('api', static function ($c) {
+				return new TokenSentinel(
+					jwtService: $c->get(JwtService::class),
+					provider: $c->get(UserProviderInterface::class),
+					request: $c->get(ServerRequestInterface::class)
+				);
+			});
 
-            return $manager;
-        });
+			return $manager;
+		});
 
-        $this->container->singleton(
-            Authorizer::class,
-            static fn(ContainerInterface $c) => new Authorizer(
-                auth: $c->get(AuthManager::class),
-                config: $c->get(Config::class),
-                container: $c
-            )
-        );
-    }
+		$this->container->singleton(
+			Authorizer::class,
+			static fn(ContainerInterface $c) => new Authorizer(
+				auth: $c->get(AuthManager::class),
+				config: $c->get(Config::class),
+				container: $c
+			)
+		);
+	}
 
-    /**
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
-     */
-    public function init(Application $app): void
-    {
-        /** @var EventDispatcher $dispatcher */
-        $dispatcher = $app->getContainer()->get(EventDispatcher::class);
-        $logger = $app->getContainer()->get(LoggerInterface::class);
+	/**
+	 * @throws ContainerExceptionInterface
+	 * @throws NotFoundExceptionInterface
+	 */
+	public function init(Application $app): void
+	{
+		/** @var EventDispatcher $dispatcher */
+		$dispatcher = $app->getContainer()->get(EventDispatcher::class);
 
-        $dispatcher->addListener(UserLoggedIn::class, [new UpdateLastLogin(), 'handle']);
+		/** @var LoggerInterface $logger */
+		$logger = $app->getContainer()->get(LoggerInterface::class);
 
-        $logListener = new LogAuthenticationAction($logger);
+		$dispatcher->addListener(UserLoggedIn::class, [new UpdateLastLogin(), 'handle']);
 
-        $dispatcher->addListener(UserLoggedIn::class, [$logListener, 'onLogin']);
-        $dispatcher->addListener(UserLoggedOut::class, [$logListener, 'onLogout']);
-        $dispatcher->addListener(LoginFailed::class, [$logListener, 'onFailure']);
-    }
+		$logListener = new LogAuthenticationAction($logger);
+
+		$dispatcher->addListener(UserLoggedIn::class, [$logListener, 'onLogin']);
+		$dispatcher->addListener(UserLoggedOut::class, [$logListener, 'onLogout']);
+		$dispatcher->addListener(LoginFailed::class, [$logListener, 'onFailure']);
+	}
 }

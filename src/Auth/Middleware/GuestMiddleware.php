@@ -26,9 +26,9 @@ class GuestMiddleware implements MiddlewareInterface
 		ServerRequestInterface $request,
 		RequestHandlerInterface $handler
 	): ResponseInterface {
-		if ($this->authManager->sentinel('web')->isAuthenticated()) {
-			$user = $this->authManager->sentinel('web')->user();
+		$user = $this->authManager->sentinel('web')->user();
 
+		if ($user) {
 			$resolvedRedirect = $this->authManager->redirectFor($user);
 
 			$queryParams = $request->getQueryParams();

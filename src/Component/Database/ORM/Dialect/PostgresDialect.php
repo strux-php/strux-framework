@@ -99,6 +99,23 @@ class PostgresDialect extends SqlDialect
         return "ALTER TABLE " . $this->quoteTable($table) . " DROP CONSTRAINT " . $this->quote($constraint);
     }
 
+    public function normalizeType(string $type): string
+    {
+        $type = parent::normalizeType($type);
+
+        $type = str_replace('character varying', 'varchar', $type);
+        $type = str_replace('timestamp without time zone', 'timestamp', $type);
+        $type = str_replace('timestamp with time zone', 'timestamptz', $type);
+        $type = str_replace('integer', 'int', $type);
+        $type = str_replace('boolean', 'tinyint(1)', $type);
+        $type = str_replace('double precision', 'double', $type);
+        $type = str_replace('bytea', 'blob', $type);
+        $type = str_replace('real', 'float', $type);
+        $type = str_replace('numeric', 'decimal', $type);
+
+        return $type;
+    }
+
     public function translateType(string $type): string
     {
         $type = strtoupper($type);

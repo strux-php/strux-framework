@@ -10,170 +10,170 @@ use stdClass;
 
 class HtmlDumper
 {
-    private static int $maxDepth = 10;
-    private static int $maxStringLength = 200;
-    private static int $maxArrayElements = 50;
-    private static string $indentation = '    ';
-    private static ?string $theme = 'light';
-    private static bool $cssRendered = false;
+	private static int $maxDepth = 10;
+	private static int $maxStringLength = 200;
+	private static int $maxArrayElements = 50;
+	private static string $indentation = '    ';
+	private static ?string $theme = 'light';
+	private static bool $cssRendered = false;
 
-    private function __construct()
-    {
-    }
+	private function __construct() {}
 
-    public static function dump(...$vars): void
-    {
-        if (PHP_SAPI === 'cli') {
-            foreach ($vars as $var) {
-                var_dump($var);
-            }
-            return;
-        }
+	public static function dump(...$vars): void
+	{
+		if (PHP_SAPI === 'cli') {
+			foreach ($vars as $var) {
+				var_dump($var);
+			}
+			return;
+		}
 
-        echo self::renderCss();
+		echo self::renderCss();
 
-        foreach ($vars as $var) {
-            echo '<div class="php-html-dumper">';
-            echo self::formatVariable($var, 0);
-            echo '</div>';
-        }
-    }
+		foreach ($vars as $var) {
+			echo '<div class="php-html-dumper">';
+			echo self::formatVariable($var, 0);
+			echo '</div>';
+		}
+	}
 
-    #[NoReturn] public static function dd(...$vars): void
-    {
-        ob_start();
-        debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-        $trace = ob_get_clean();
-        echo '<pre>' . htmlspecialchars($trace) . '</pre>';
+	#[NoReturn] public static function dd(...$vars): void
+	{
+		ob_start();
+		$trace = ob_get_clean();
+		echo '<pre>' . htmlspecialchars($trace) . '</pre>';
 
-        self::dump(...$vars);
-        die();
-    }
+		self::dump(...$vars);
+		die();
+	}
 
-    private static function formatVariable(mixed &$variable, int $depth): string
-    {
-        $type = gettype($variable);
-        $id = 'dumper-' . uniqid();
+	private static function formatVariable(mixed &$variable, int $depth): string
+	{
+		$type = gettype($variable);
+		$id = 'dumper-' . uniqid();
 
-        switch ($type) {
-            case 'boolean':
-                return '<span class="php-dumper-boolean">' . ($variable ? 'true' : 'false') . '</span>';
-            case 'integer':
-                return '<span class="php-dumper-integer">' . $variable . '</span>';
-            case 'double':
-                return '<span class="php-dumper-float">' . $variable . '</span>';
-            case 'string':
-                $len = strlen($variable);
-                $safeString = htmlspecialchars($variable, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-                if ($len > self::$maxStringLength) {
-                    $safeString = htmlspecialchars(substr($variable, 0, self::$maxStringLength), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '&hellip;';
-                }
-                return '<span class="php-dumper-string">"' . $safeString . '"</span> <span class="php-dumper-meta">(length=' . $len . ')</span>';
-            case 'array':
-                return self::formatArray($variable, $depth, $id);
-            case 'object':
-                return self::formatObject($variable, $depth, $id);
-            case 'resource':
-            case 'resource (closed)':
-                return '<span class="php-dumper-resource">' . get_resource_type($variable) . '</span> <span class="php-dumper-meta">(resource id #' . (int)$variable . ')</span>';
-            case 'NULL':
-                return '<span class="php-dumper-null">null</span>';
-            default:
-                return '<span class="php-dumper-unknown">' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '</span>';
-        }
-    }
+		switch ($type) {
+			case 'boolean':
+				return '<span class="php-dumper-boolean">' . ($variable ? 'true' : 'false') . '</span>';
+			case 'integer':
+				return '<span class="php-dumper-integer">' . $variable . '</span>';
+			case 'double':
+				return '<span class="php-dumper-float">' . $variable . '</span>';
+			case 'string':
+				$len = strlen($variable);
+				$safeString = htmlspecialchars($variable, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+				if ($len > self::$maxStringLength) {
+					$safeString = htmlspecialchars(substr($variable, 0, self::$maxStringLength), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '&hellip;';
+				}
+				return '<span class="php-dumper-string">"' . $safeString . '"</span> <span class="php-dumper-meta">(length=' . $len . ')</span>';
+			case 'array':
+				return self::formatArray($variable, $depth, $id);
+			case 'object':
+				return self::formatObject($variable, $depth, $id);
+			case 'resource':
+			case 'resource (closed)':
+				return '<span class="php-dumper-resource">' . get_resource_type($variable) . '</span> <span class="php-dumper-meta">(resource id #' . (int)$variable . ')</span>';
+			case 'NULL':
+				return '<span class="php-dumper-null">null</span>';
+			default:
+				return '<span class="php-dumper-unknown">' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '</span>';
+		}
+	}
 
-    private static function formatArray(array &$arr, int $depth, string $id): string
-    {
-        $count = count($arr);
-        if ($depth >= self::$maxDepth || $count === 0) {
-            return '<span class="php-dumper-array-keyword">array</span><span class="php-dumper-meta">(size=' . $count . ')</span>' . ' <span class="php-dumper-punctuation">[]</span>';
-        }
+	private static function formatArray(array &$arr, int $depth, string $id): string
+	{
+		$count = count($arr);
+		if ($depth >= self::$maxDepth || $count === 0) {
+			return '<span class="php-dumper-array-keyword">array</span><span class="php-dumper-meta">(size=' . $count . ')</span>' . ' <span class="php-dumper-punctuation">[]</span>';
+		}
 
-        $output = '<span class="php-dumper-array-keyword">array</span><span class="php-dumper-meta">(size=' . $count . ')</span> <label class="php-dumper-toggle" for="' . $id . '">▼</label><input type="checkbox" id="' . $id . '" class="php-dumper-toggle-checkbox" checked><span class="php-dumper-punctuation">[</span><div class="php-dumper-collapsible">';
-        $elementsRendered = 0;
-        foreach ($arr as $key => &$value) {
-            if ($elementsRendered >= self::$maxArrayElements) {
-                $output .= str_repeat(self::$indentation, $depth + 1) . '<span class="php-dumper-meta">&hellip; (' . ($count - $elementsRendered) . ' more elements)</span><br>';
-                break;
-            }
-            $output .= str_repeat(self::$indentation, $depth + 1);
-            $output .= '<span class="php-dumper-key">' . (is_int($key) ? $key : '"' . htmlspecialchars((string)$key, ENT_QUOTES, 'UTF-8') . '"') . '</span> <span class="php-dumper-punctuation">=&gt;</span> ';
-            $output .= self::formatVariable($value, $depth + 1) . '<br>';
-            $elementsRendered++;
-        }
-        $output .= str_repeat(self::$indentation, $depth) . '</div><span class="php-dumper-punctuation">]</span>';
-        return $output;
-    }
+		$output = '<span class="php-dumper-array-keyword">array</span><span class="php-dumper-meta">(size=' . $count . ')</span> <label class="php-dumper-toggle" for="' . $id . '">▼</label><input type="checkbox" id="' . $id . '" class="php-dumper-toggle-checkbox" checked><span class="php-dumper-punctuation">[</span><div class="php-dumper-collapsible">';
+		$elementsRendered = 0;
+		foreach ($arr as $key => &$value) {
+			if ($elementsRendered >= self::$maxArrayElements) {
+				$output .= str_repeat(self::$indentation, $depth + 1) . '<span class="php-dumper-meta">&hellip; (' . ($count - $elementsRendered) . ' more elements)</span><br>';
+				break;
+			}
+			$output .= str_repeat(self::$indentation, $depth + 1);
+			$output .= '<span class="php-dumper-key">' . (is_int($key) ? $key : '"' . htmlspecialchars((string)$key, ENT_QUOTES, 'UTF-8') . '"') . '</span> <span class="php-dumper-punctuation">=&gt;</span> ';
+			$output .= self::formatVariable($value, $depth + 1) . '<br>';
+			$elementsRendered++;
+		}
+		$output .= str_repeat(self::$indentation, $depth) . '</div><span class="php-dumper-punctuation">]</span>';
+		return $output;
+	}
 
-    private static function formatObject(object &$obj, int $depth, string $id): string
-    {
-        $className = get_class($obj);
-        if ($depth >= self::$maxDepth) {
-            return '<span class="php-dumper-object-keyword">object</span>(<span class="php-dumper-classname">' . htmlspecialchars($className, ENT_QUOTES, 'UTF-8') . '</span>) <span class="php-dumper-punctuation">{&hellip;}</span>';
-        }
+	private static function formatObject(object &$obj, int $depth, string $id): string
+	{
+		$className = get_class($obj);
+		if ($depth >= self::$maxDepth) {
+			return '<span class="php-dumper-object-keyword">object</span>(<span class="php-dumper-classname">' . htmlspecialchars($className, ENT_QUOTES, 'UTF-8') . '</span>) <span class="php-dumper-punctuation">{&hellip;}</span>';
+		}
 
-        $output = '<span class="php-dumper-object-keyword">object</span>(<span class="php-dumper-classname">' . htmlspecialchars($className, ENT_QUOTES, 'UTF-8') . '</span>) <label class="php-dumper-toggle" for="' . $id . '">▼</label><input type="checkbox" id="' . $id . '" class="php-dumper-toggle-checkbox" checked><span class="php-dumper-punctuation">{</span><div class="php-dumper-collapsible">';
+		$output = '<span class="php-dumper-object-keyword">object</span>(<span class="php-dumper-classname">' . htmlspecialchars($className, ENT_QUOTES, 'UTF-8') . '</span>) <label class="php-dumper-toggle" for="' . $id . '">▼</label><input type="checkbox" id="' . $id . '" class="php-dumper-toggle-checkbox" checked><span class="php-dumper-punctuation">{</span><div class="php-dumper-collapsible">';
 
-        $reflection = new ReflectionClass($obj);
-        $properties = $reflection->getProperties();
-        $elementsRendered = 0;
+		$reflection = new ReflectionClass($obj);
+		$properties = $reflection->getProperties();
+		$elementsRendered = 0;
 
-        // Handle stdClass or general iterable objects
-        if ($obj instanceof stdClass || empty($properties)) {
-            $objectVars = get_object_vars($obj);
-            $count = count($objectVars);
-            $output = '<span class="php-dumper-object-keyword">object</span>(<span class="php-dumper-classname">' . htmlspecialchars($className, ENT_QUOTES, 'UTF-8') . '</span>)<span class="php-dumper-meta">(size=' . $count . ')</span> <label class="php-dumper-toggle" for="' . $id . '">▼</label><input type="checkbox" id="' . $id . '" class="php-dumper-toggle-checkbox" checked><span class="php-dumper-punctuation">{</span><div class="php-dumper-collapsible">';
+		// Handle stdClass or general iterable objects
+		if ($obj instanceof stdClass || empty($properties)) {
+			$objectVars = get_object_vars($obj);
+			$count = count($objectVars);
+			$output = '<span class="php-dumper-object-keyword">object</span>(<span class="php-dumper-classname">' . htmlspecialchars($className, ENT_QUOTES, 'UTF-8') . '</span>)<span class="php-dumper-meta">(size=' . $count . ')</span> <label class="php-dumper-toggle" for="' . $id . '">▼</label><input type="checkbox" id="' . $id . '" class="php-dumper-toggle-checkbox" checked><span class="php-dumper-punctuation">{</span><div class="php-dumper-collapsible">';
 
-            foreach ($objectVars as $key => &$value) {
-                if ($elementsRendered >= self::$maxArrayElements) {
-                    $output .= str_repeat(self::$indentation, $depth + 1) . '<span class="php-dumper-meta">&hellip; (' . (count($objectVars) - $elementsRendered) . ' more properties)</span><br>';
-                    break;
-                }
-                $output .= str_repeat(self::$indentation, $depth + 1);
-                $output .= '<span class="php-dumper-property-web">web</span> <span class="php-dumper-key">$' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '</span> <span class="php-dumper-punctuation">=</span> ';
-                $output .= self::formatVariable($value, $depth + 1) . '<br>';
-                $elementsRendered++;
-            }
-        } else {
-            // Handle specific properties using reflection
-            foreach ($properties as $prop) {
-                if ($elementsRendered >= self::$maxArrayElements) {
-                    $output .= str_repeat(self::$indentation, $depth + 1) . '<span class="php-dumper-meta">&hellip; (' . (count($properties) - $elementsRendered) . ' more properties)</span><br>';
-                    break;
-                }
+			foreach ($objectVars as $key => &$value) {
+				if ($elementsRendered >= self::$maxArrayElements) {
+					$output .= str_repeat(self::$indentation, $depth + 1) . '<span class="php-dumper-meta">&hellip; (' . (count($objectVars) - $elementsRendered) . ' more properties)</span><br>';
+					break;
+				}
+				$output .= str_repeat(self::$indentation, $depth + 1);
+				$output .= '<span class="php-dumper-property-web">web</span> <span class="php-dumper-key">$' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '</span> <span class="php-dumper-punctuation">=</span> ';
+				$output .= self::formatVariable($value, $depth + 1) . '<br>';
+				$elementsRendered++;
+			}
+		} else {
+			// Handle specific properties using reflection
+			foreach ($properties as $prop) {
+				if ($elementsRendered >= self::$maxArrayElements) {
+					$output .= str_repeat(self::$indentation, $depth + 1) . '<span class="php-dumper-meta">&hellip; (' . (count($properties) - $elementsRendered) . ' more properties)</span><br>';
+					break;
+				}
 
-                // Make property accessible to read its value
-                $value = $prop->getValue($obj);
+				// Make property accessible to read its value
+				if (!$prop->isPublic()) {
+					$prop->setAccessible(true);
+				}
+				$value = $prop->getValue($obj);
 
-                $output .= str_repeat(self::$indentation, $depth + 1);
-                $visibility = '';
-                if ($prop->isPublic()) $visibility = 'web';
-                elseif ($prop->isProtected()) $visibility = 'protected';
-                elseif ($prop->isPrivate()) $visibility = 'private';
+				$output .= str_repeat(self::$indentation, $depth + 1);
+				$visibility = '';
+				if ($prop->isPublic()) $visibility = 'web';
+				elseif ($prop->isProtected()) $visibility = 'protected';
+				elseif ($prop->isPrivate()) $visibility = 'private';
 
-                $output .= '<span class="php-dumper-property-' . $visibility . '">' . $visibility . '</span> ';
-                if ($prop->isStatic()) {
-                    $output .= '<span class="php-dumper-modifier">static</span> ';
-                }
-                $output .= '<span class="php-dumper-key">$' . htmlspecialchars($prop->getName(), ENT_QUOTES, 'UTF-8') . '</span> <span class="php-dumper-punctuation">=</span> ';
-                $output .= self::formatVariable($value, $depth + 1) . '<br>';
-                $elementsRendered++;
-            }
-        }
+				$output .= '<span class="php-dumper-property-' . $visibility . '">' . $visibility . '</span> ';
+				if ($prop->isStatic()) {
+					$output .= '<span class="php-dumper-modifier">static</span> ';
+				}
+				$output .= '<span class="php-dumper-key">$' . htmlspecialchars($prop->getName(), ENT_QUOTES, 'UTF-8') . '</span> <span class="php-dumper-punctuation">=</span> ';
+				$output .= self::formatVariable($value, $depth + 1) . '<br>';
+				$elementsRendered++;
+			}
+		}
 
-        $output .= str_repeat(self::$indentation, $depth) . '</div><span class="php-dumper-punctuation">}</span>';
-        return $output;
-    }
+		$output .= str_repeat(self::$indentation, $depth) . '</div><span class="php-dumper-punctuation">}</span>';
+		return $output;
+	}
 
-    private static function renderCss(): string
-    {
-        if (self::$cssRendered && PHP_SAPI !== 'cli') {
-            return '';
-        }
-        self::$cssRendered = true;
+	private static function renderCss(): string
+	{
+		if (self::$cssRendered && PHP_SAPI !== 'cli') {
+			return '';
+		}
+		self::$cssRendered = true;
 
-        $lightTheme = "
+		$lightTheme = "
             --dumper-bg: #f8f8f8;
             --dumper-text: #222;
             --dumper-border: #ddd;
@@ -195,7 +195,7 @@ class HtmlDumper
             --dumper-meta: #777;
             --dumper-collapsible-bg: #fff;
         ";
-        $darkTheme = "
+		$darkTheme = "
             --dumper-bg: #2b2b2b;
             --dumper-text: #d0d0d0;
             --dumper-border: #444;
@@ -218,9 +218,9 @@ class HtmlDumper
             --dumper-collapsible-bg: #303030;
         ";
 
-        $chosenTheme = self::$theme === 'dark' ? $darkTheme : $lightTheme;
+		$chosenTheme = self::$theme === 'dark' ? $darkTheme : $lightTheme;
 
-        return <<<CSS
+		return <<<CSS
             <style>
                 .php-html-dumper {
                     {$chosenTheme}
@@ -280,41 +280,41 @@ class HtmlDumper
                 }
             </style>
             CSS;
-    }
+	}
 
-    /**
-     * Set the theme for the dumper output.
-     * @param string $theme 'light' or 'dark'
-     */
-    public static function setTheme(string $theme): void
-    {
-        if (in_array(strtolower($theme), ['light', 'dark'])) {
-            self::$theme = strtolower($theme);
-            self::$cssRendered = false;
-        }
-    }
+	/**
+	 * Set the theme for the dumper output.
+	 * @param string $theme 'light' or 'dark'
+	 */
+	public static function setTheme(string $theme): void
+	{
+		if (in_array(strtolower($theme), ['light', 'dark'])) {
+			self::$theme = strtolower($theme);
+			self::$cssRendered = false;
+		}
+	}
 
-    /**
-     * Set max depth for dumping arrays/objects.
-     */
-    public static function setMaxDepth(int $depth): void
-    {
-        self::$maxDepth = max(0, $depth);
-    }
+	/**
+	 * Set max depth for dumping arrays/objects.
+	 */
+	public static function setMaxDepth(int $depth): void
+	{
+		self::$maxDepth = max(0, $depth);
+	}
 
-    /**
-     * Set max string length before truncating.
-     */
-    public static function setMaxStringLength(int $length): void
-    {
-        self::$maxStringLength = max(0, $length);
-    }
+	/**
+	 * Set max string length before truncating.
+	 */
+	public static function setMaxStringLength(int $length): void
+	{
+		self::$maxStringLength = max(0, $length);
+	}
 
-    /**
-     * Set max array/object elements to display before showing ellipsis.
-     */
-    public static function setMaxElements(int $count): void
-    {
-        self::$maxArrayElements = max(0, $count);
-    }
+	/**
+	 * Set max array/object elements to display before showing ellipsis.
+	 */
+	public static function setMaxElements(int $count): void
+	{
+		self::$maxArrayElements = max(0, $count);
+	}
 }

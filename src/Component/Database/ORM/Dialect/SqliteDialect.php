@@ -84,6 +84,34 @@ class SqliteDialect extends SqlDialect
         return "DROP INDEX {$this->quote($indexName)}";
     }
 
+    public function normalizeType(string $type): string
+    {
+        $type = parent::normalizeType($type);
+
+        if ($type === 'integer' || str_contains($type, 'int')) {
+            $type = preg_replace('/\(.*?\)/', '', $type);
+            return 'int';
+        }
+
+        if ($type === 'text' || str_contains($type, 'text') || $type === 'clob') {
+            return 'text';
+        }
+
+        if ($type === 'real' || $type === 'double' || $type === 'double precision' || str_contains($type, 'float')) {
+            return 'float';
+        }
+
+        if ($type === 'blob') {
+            return 'blob';
+        }
+
+        if ($type === 'numeric' || str_contains($type, 'decimal')) {
+            return 'decimal';
+        }
+
+        return $type;
+    }
+
     public function translateType(string $type): string
     {
         $type = strtoupper($type);

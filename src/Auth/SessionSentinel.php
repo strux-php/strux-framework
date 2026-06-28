@@ -44,6 +44,9 @@ class SessionSentinel implements SentinelInterface
 		$id = $this->session->get(self::SESSION_USER_ID_KEY);
 		if ($id) {
 			$this->user = $this->provider->retrieveById($id);
+			if ($this->user === null) {
+				$this->session->remove(self::SESSION_USER_ID_KEY);
+			}
 		}
 
 		$this->userLoaded = true;

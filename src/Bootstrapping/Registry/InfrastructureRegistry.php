@@ -22,72 +22,74 @@ use Strux\Component\Validation\ValidatorInterface;
 use Strux\Component\View\ViewInterface;
 use Strux\Component\Filesystem\Filesystem;
 use Strux\Component\Filesystem\FilesystemInterface;
+use Strux\Component\Mapper\Mapper;
+use Strux\Component\Mapper\MapperInterface;
 use Strux\Support\Helpers\Flash;
 use Strux\Support\Helpers\FlashInterface;
 
 class InfrastructureRegistry extends ServiceRegistry
 {
-    public function build(): void
-    {
-        $this->container->singleton(
-            FilesystemInterface::class,
-            static fn(ContainerInterface $c) => new Filesystem()
-        );
+	public function build(): void
+	{
+		$this->container->singleton(
+			FilesystemInterface::class,
+			static fn(ContainerInterface $c) => new Filesystem()
+		);
 
-        $this->container->singleton(
-            SessionInterface::class,
-            static fn(ContainerInterface $c) => new SessionManager(
-                config: $c->get(Config::class),
-                container: $c
-            )
-        );
+		$this->container->singleton(
+			SessionInterface::class,
+			static fn(ContainerInterface $c) => new SessionManager(
+				config: $c->get(Config::class),
+				container: $c
+			)
+		);
 
-        $this->container->singleton(
-            CookieInterface::class,
-            static fn(ContainerInterface $c) => new Cookie(
-                config: $c->get(Config::class)
-            )
-        );
+		$this->container->singleton(
+			CookieInterface::class,
+			static fn(ContainerInterface $c) => new Cookie(
+				config: $c->get(Config::class)
+			)
+		);
 
-        $this->container->singleton(
-            FlashInterface::class,
-            static fn(ContainerInterface $c) => new Flash(
-                session: $c->get(SessionInterface::class)
-            )
-        );
+		$this->container->singleton(
+			FlashInterface::class,
+			static fn(ContainerInterface $c) => new Flash(
+				session: $c->get(SessionInterface::class)
+			)
+		);
 
-        $this->container->singleton(
-            CacheInterface::class,
-            static fn(ContainerInterface $c) => new Cache(
-                config: $c->get(Config::class),
-                logger: $c->get(LoggerInterface::class),
-                events: $c->get(EventDispatcherInterface::class)
-            )
-        );
+		$this->container->singleton(
+			CacheInterface::class,
+			static fn(ContainerInterface $c) => new Cache(
+				config: $c->get(Config::class),
+				logger: $c->get(LoggerInterface::class),
+				events: $c->get(EventDispatcherInterface::class)
+			)
+		);
 
-        $this->container->bind(
-            ValidatorInterface::class,
-            static function (ContainerInterface $c) {
-                /** @var ServerRequestInterface $parsedBody */
-                $parsedBody = $c->get(ServerRequestInterface::class);
-                return new Validator(
-                    postData: $parsedBody->getParsedBody() ?? []
-                );
-            }
-        );
+		$this->container->bind(
+			ValidatorInterface::class,
+			static function (ContainerInterface $c) {
+				/** @var ServerRequestInterface $parsedBody */
+				$parsedBody = $c->get(ServerRequestInterface::class);
+				return new Validator(
+					postData: $parsedBody->getParsedBody() ?? []
+				);
+			}
+		);
 
-        $this->container->transient(
-            MailerInterface::class,
-            static fn(ContainerInterface $c) => new Mailer(
-                config: $c->get(Config::class),
-                view: $c->get(ViewInterface::class),
-                logger: $c->get(LoggerInterface::class)
-            )
-        );
+		$this->container->transient(
+			MailerInterface::class,
+			static fn(ContainerInterface $c) => new Mailer(
+				config: $c->get(Config::class),
+				view: $c->get(ViewInterface::class),
+				logger: $c->get(LoggerInterface::class)
+			)
+		);
 
-        $this->container->singleton(
-            \Strux\Component\Mapper\MapperInterface::class,
-            static fn(ContainerInterface $c) => new \Strux\Component\Mapper\Mapper()
-        );
-    }
+		$this->container->singleton(
+			MapperInterface::class,
+			static fn(ContainerInterface $c) => new Mapper()
+		);
+	}
 }

@@ -184,6 +184,23 @@ class OracleDialect extends SqlDialect
         return "DROP INDEX {$this->quote($indexName)}";
     }
 
+    public function normalizeType(string $type): string
+    {
+        $type = parent::normalizeType($type);
+
+        $type = str_replace('varchar2', 'varchar', $type);
+        $type = str_replace('number(1)', 'tinyint(1)', $type);
+        $type = str_replace('number(20)', 'bigint', $type);
+        $type = str_replace('number', 'decimal', $type);
+        $type = str_replace('clob', 'text', $type);
+        $type = str_replace('blob', 'blob', $type);
+        $type = str_replace('timestamp', 'datetime', $type);
+        $type = str_replace('raw', 'binary', $type);
+        $type = str_replace('float', 'float', $type);
+
+        return $type;
+    }
+
     public function translateType(string $type): string
     {
         $type = strtoupper($type);

@@ -65,6 +65,7 @@ class OwnedByMany extends Relation
         foreach ($results as $result) {
             $pivotKeyValue = $result->pivot_key;
             $dictionary[$pivotKeyValue][] = $result;
+            $result->removeOriginalKey('pivot_key');
         }
 
         foreach ($models as $model) {

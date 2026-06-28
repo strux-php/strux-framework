@@ -90,6 +90,11 @@ trait HasRelationships
         return $builder;
     }
 
+    public function with(mixed ...$relations): static
+    {
+        return $this->include(...$relations);
+    }
+
     protected function eagerLoadRelations(array $models, array $relations): void
     {
         $normalizedRelations = [];

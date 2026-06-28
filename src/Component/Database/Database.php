@@ -98,12 +98,15 @@ class Database
                 }
             } elseif ($driver === 'mysql' || $driver === 'mariadb') {
                 if (!empty($connectionConfig['charset'])) {
-                    $pdo->exec("SET NAMES '{$connectionConfig['charset']}'" .
-                        (!empty($connectionConfig['collation']) ? " COLLATE '{$connectionConfig['collation']}'" : ''));
+                    $charset = $pdo->quote($connectionConfig['charset']);
+                    $collation = !empty($connectionConfig['collation'])
+                        ? ' COLLATE ' . $pdo->quote($connectionConfig['collation'])
+                        : '';
+                    $pdo->exec("SET NAMES {$charset}{$collation}");
                 }
             } elseif ($driver === 'pgsql') {
                 if (!empty($connectionConfig['schema'])) {
-                    $pdo->exec("SET search_path TO '{$connectionConfig['schema']}'");
+                    $pdo->exec("SET search_path TO " . $pdo->quote($connectionConfig['schema']));
                 }
             }
 

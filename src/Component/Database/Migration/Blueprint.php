@@ -36,9 +36,9 @@ class Blueprint
         $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
         $dialect = match ($driver) {
             'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+            'mariadb' => new \Strux\Component\Database\ORM\Dialect\MariaDbDialect(),
             'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
             'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
-            'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
             default => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
         };
 
@@ -251,9 +251,9 @@ class Blueprint
                 $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
                 $dialect = match ($driver) {
                     'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+                    'mariadb' => new \Strux\Component\Database\ORM\Dialect\MariaDbDialect(),
                     'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
                     'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
-                    'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
                     default => throw new \Exception("Unsupported database driver: $driver"),
                 };
 
@@ -271,9 +271,9 @@ class Blueprint
                 $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
                 $dialect = match ($driver) {
                     'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+                    'mariadb' => new \Strux\Component\Database\ORM\Dialect\MariaDbDialect(),
                     'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
                     'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
-                    'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
                     default => throw new \Exception("Unsupported database driver: $driver"),
                 };
 
@@ -441,6 +441,7 @@ class Blueprint
             $driver = $db->getAttribute(\PDO::ATTR_DRIVER_NAME);
             $dialect = match ($driver) {
                 'mysql' => new \Strux\Component\Database\ORM\Dialect\MySqlDialect(),
+                'mariadb' => new \Strux\Component\Database\ORM\Dialect\MariaDbDialect(),
                 'pgsql' => new \Strux\Component\Database\ORM\Dialect\PostgresDialect(),
                 'sqlite' => new \Strux\Component\Database\ORM\Dialect\SqliteDialect(),
                 'sqlsrv' => new \Strux\Component\Database\ORM\Dialect\SqlServerDialect(),
