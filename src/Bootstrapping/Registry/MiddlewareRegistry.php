@@ -76,9 +76,10 @@ class MiddlewareRegistry extends ServiceRegistry
                 responseFactory: $c->get(ResponseFactoryInterface::class),
                 router: $c->get(Router::class),
                 flash: $c->get(FlashInterface::class),
+                container: $c,
+                logger: $c->get(LoggerInterface::class),
                 loginRouteName: $c->get(Config::class)->get('auth.defaults.login_route'),
-                nextParameter: $c->get(Config::class)->get('auth.defaults.next_parameter'),
-                logger: $c->get(LoggerInterface::class)
+                nextParameter: $c->get(Config::class)->get('auth.defaults.next_parameter')
             )
         );
 

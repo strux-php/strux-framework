@@ -12,9 +12,13 @@ use Psr\Log\LoggerInterface;
 use Strux\Auth\AuthManager;
 use Strux\Auth\Authorizer;
 use Strux\Auth\DatabaseUserProvider;
+use Strux\Auth\Events\Authenticated;
 use Strux\Auth\Events\LoginFailed;
-use Strux\Auth\Events\UserLoggedIn;
-use Strux\Auth\Events\UserLoggedOut;
+use Strux\Auth\Events\LoggedOut;
+use Strux\Auth\Events\PasswordReset;
+use Strux\Auth\Events\Registered;
+use Strux\Auth\Events\Validated;
+use Strux\Auth\Events\Verified;
 use Strux\Auth\JwtService;
 use Strux\Auth\Listeners\LogAuthenticationAction;
 use Strux\Auth\Listeners\UpdateLastLogin;
@@ -48,10 +52,13 @@ class AuthRegistry extends ServiceRegistry
 			$manager = new AuthManager($c, $c->get(Config::class));
 
 			$manager->extend('web', static function ($c) {
+				$config = $c->get(Config::class);
+
 				return new SessionSentinel(
 					session: $c->get(SessionInterface::class),
 					provider: $c->get(UserProviderInterface::class),
-					events: $c->get(EventDispatcher::class)
+					events: $c->get(EventDispatcher::class),
+					config: $config->get('auth.sentinels.web', [])
 				);
 			});
 
@@ -70,7 +77,6 @@ class AuthRegistry extends ServiceRegistry
 			Authorizer::class,
 			static fn(ContainerInterface $c) => new Authorizer(
 				auth: $c->get(AuthManager::class),
-				config: $c->get(Config::class),
 				container: $c
 			)
 		);
@@ -88,12 +94,16 @@ class AuthRegistry extends ServiceRegistry
 		/** @var LoggerInterface $logger */
 		$logger = $app->getContainer()->get(LoggerInterface::class);
 
-		$dispatcher->addListener(UserLoggedIn::class, [new UpdateLastLogin(), 'handle']);
+		$dispatcher->addListener(Authenticated::class, [new UpdateLastLogin(), 'handle']);
 
 		$logListener = new LogAuthenticationAction($logger);
 
-		$dispatcher->addListener(UserLoggedIn::class, [$logListener, 'onLogin']);
-		$dispatcher->addListener(UserLoggedOut::class, [$logListener, 'onLogout']);
+		$dispatcher->addListener(Authenticated::class, [$logListener, 'onLogin']);
+		$dispatcher->addListener(LoggedOut::class, [$logListener, 'onLogout']);
 		$dispatcher->addListener(LoginFailed::class, [$logListener, 'onFailure']);
+		$dispatcher->addListener(Registered::class, [$logListener, 'onRegistered']);
+		$dispatcher->addListener(Validated::class, [$logListener, 'onValidated']);
+		$dispatcher->addListener(Verified::class, [$logListener, 'onVerified']);
+		$dispatcher->addListener(PasswordReset::class, [$logListener, 'onPasswordReset']);
 	}
 }

@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Strux\Auth\Listeners;
 
 use Psr\Log\LoggerInterface;
+use Strux\Auth\Events\Authenticated;
 use Strux\Auth\Events\LoginFailed;
-use Strux\Auth\Events\UserLoggedIn;
-use Strux\Auth\Events\UserLoggedOut;
+use Strux\Auth\Events\LoggedOut;
+use Strux\Auth\Events\PasswordReset;
+use Strux\Auth\Events\Registered;
+use Strux\Auth\Events\Validated;
+use Strux\Auth\Events\Verified;
 
 readonly class LogAuthenticationAction
 {
@@ -17,14 +21,14 @@ readonly class LogAuthenticationAction
     {
     }
 
-    public function onLogin(UserLoggedIn $event): void
+    public function onLogin(Authenticated $event): void
     {
         $id = $this->getUserId($event->user);
         $email = $event->user->email ?? 'unknown';
         $this->logger->info("[Auth] User Logged In: ID {$id} ({$email})");
     }
 
-    public function onLogout(UserLoggedOut $event): void
+    public function onLogout(LoggedOut $event): void
     {
         $id = $this->getUserId($event->user);
         $this->logger->info("[Auth] User Logged Out: ID {$id}");
@@ -34,6 +38,34 @@ readonly class LogAuthenticationAction
     {
         $email = $event->credentials['email'] ?? 'unknown';
         $this->logger->warning("[Auth] Failed Login Attempt for email: {$email}");
+    }
+
+    public function onRegistered(Registered $event): void
+    {
+        $id = $this->getUserId($event->user);
+        $email = $event->user->email ?? 'unknown';
+        $this->logger->info("[Auth] User Registered: ID {$id} ({$email})");
+    }
+
+    public function onValidated(Validated $event): void
+    {
+        $id = $this->getUserId($event->user);
+        $email = $event->user->email ?? 'unknown';
+        $this->logger->info("[Auth] User Validated: ID {$id} ({$email})");
+    }
+
+    public function onVerified(Verified $event): void
+    {
+        $id = $this->getUserId($event->user);
+        $email = $event->user->email ?? 'unknown';
+        $this->logger->info("[Auth] User Email Verified: ID {$id} ({$email})");
+    }
+
+    public function onPasswordReset(PasswordReset $event): void
+    {
+        $id = $this->getUserId($event->user);
+        $email = $event->user->email ?? 'unknown';
+        $this->logger->info("[Auth] User Password Reset: ID {$id} ({$email})");
     }
 
     /**

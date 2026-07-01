@@ -10,9 +10,9 @@ use Attribute;
 class Authorize
 {
     public function __construct(
-        public array $roles = [],
-        public array $permissions = []
-    )
-    {
-    }
+        public array   $roles       = [],
+        public array   $permissions = [],
+        public ?string $ability     = null,
+        public array   $authorities = [],
+    ) {}
 }

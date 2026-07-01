@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Strux\Auth\Events;
 
-class UserLoggedOut
+class Validated
 {
     public function __construct(
-        public ?object $user = null
+        public object $user
     )
     {
     }

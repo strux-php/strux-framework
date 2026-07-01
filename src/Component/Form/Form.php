@@ -200,13 +200,14 @@ abstract class Form implements FormInterface
 		// 2. Bind Data to Fields and Properties
 		foreach ($this->fields as $name => $field) {
 			if (array_key_exists($name, $inputData)) {
-				$value = $inputData[$name];
+				$rawValue = $inputData[$name];
 
-				// Update Field Object
-				$field->setValue($value);
+				// Update Field Object (applies coercion)
+				$field->setValue($rawValue);
 
-				// Update Class Property
+				// Update Class Property using coerced value from Field
 				if (property_exists($this, $name)) {
+					$value = $field->getValue();
 					$rp = new ReflectionProperty($this, $name);
 					$propType = $rp->getType();
 					$propTypeName = $propType instanceof \ReflectionNamedType ? $propType->getName() : null;
@@ -279,25 +280,22 @@ abstract class Form implements FormInterface
 
 	public function get(?string $key = null, mixed $default = null, ?string $type = null): mixed
 	{
-		// TODO: Needs fixing
 		$data = $this->getData();
 		if ($key === null) {
 			return $data;
 		}
 
-		if (array_key_exists($key, $data)) {
-			if ($type) {
-				return Utils::castValue($data[$key], $type);
-			} else {
-				return $data[$key];
-			}
-		}
+		$value = array_key_exists($key, $data) ? $data[$key] : $default;
 
-		if ($type) {
-			return Utils::castValue($default, $type);
-		} else {
+		if ($value === $default) {
 			return $default;
 		}
+
+		if ($type !== null) {
+			return Utils::castValue($value, $type);
+		}
+
+		return $value;
 	}
 
 	public function getErrors(): array

@@ -6,11 +6,11 @@ namespace Strux\Auth\Listeners;
 
 //use App\Domain\General\Entity\User;
 use DateTime;
-use Strux\Auth\Events\UserLoggedIn;
+use Strux\Auth\Events\Authenticated;
 
 class UpdateLastLogin
 {
-    public function handle(UserLoggedIn $event): void
+    public function handle(Authenticated $event): void
     {
         // /** @var User $user */
         $user = $event->user;

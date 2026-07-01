@@ -48,10 +48,11 @@ abstract class Migration
         }
 
         $driver = $this->db->getAttribute(\PDO::ATTR_DRIVER_NAME);
-        $isPgsql = $driver === 'pgsql';
+        $isMysql = in_array($driver, ['mysql', 'mariadb'], true);
 
         // Disable foreign key checks to allow modifications to constrained columns
-        if (!$isPgsql) {
+        // (MySQL/MariaDB only — other databases use different mechanisms)
+        if ($isMysql) {
             $this->db->exec('SET FOREIGN_KEY_CHECKS=0;');
         }
 
@@ -61,25 +62,37 @@ abstract class Migration
                 continue;
             }
 
-            if ($isPgsql) {
+            if (!$isMysql) {
                 // Translate MySQL backticks to standard double quotes
                 $query = str_replace('`', '"', $query);
-                // Postgres does not support ON UPDATE CURRENT_TIMESTAMP implicitly
+
+                // MySQL-only: column ordering via AFTER is not supported
+                $query = preg_replace('/\s+AFTER\s+"[^"]+"/i', '', $query);
+
+                // ON UPDATE CURRENT_TIMESTAMP is MySQL-specific
                 $query = str_ireplace(' ON UPDATE CURRENT_TIMESTAMP', '', $query);
-                
-                // Translate AUTO_INCREMENT to SERIAL
-                $query = str_ireplace('INTEGER AUTO_INCREMENT', 'SERIAL', $query);
-                $query = str_ireplace('INT AUTO_INCREMENT', 'SERIAL', $query);
-                $query = str_ireplace(' AUTO_INCREMENT', '', $query);
-                
-                // Postgres uses just SERIAL, not INTEGER SERIAL
-                $query = str_ireplace('INTEGER SERIAL', 'SERIAL', $query);
-                $query = str_ireplace('INT SERIAL', 'SERIAL', $query);
-                // Postgres expects boolean literals for boolean defaults
-                $query = str_ireplace('BOOLEAN NULL DEFAULT 0', 'BOOLEAN NULL DEFAULT FALSE', $query);
-                $query = str_ireplace('BOOLEAN NOT NULL DEFAULT 0', 'BOOLEAN NOT NULL DEFAULT FALSE', $query);
-                $query = str_ireplace('BOOLEAN NULL DEFAULT 1', 'BOOLEAN NULL DEFAULT TRUE', $query);
-                $query = str_ireplace('BOOLEAN NOT NULL DEFAULT 1', 'BOOLEAN NOT NULL DEFAULT TRUE', $query);
+
+                if ($driver === 'pgsql') {
+                    // Translate AUTO_INCREMENT to SERIAL
+                    $query = str_ireplace('INTEGER AUTO_INCREMENT', 'SERIAL', $query);
+                    $query = str_ireplace('INT AUTO_INCREMENT', 'SERIAL', $query);
+                    $query = str_ireplace(' AUTO_INCREMENT', '', $query);
+
+                    // Postgres uses just SERIAL, not INTEGER SERIAL
+                    $query = str_ireplace('INTEGER SERIAL', 'SERIAL', $query);
+                    $query = str_ireplace('INT SERIAL', 'SERIAL', $query);
+
+                    // Postgres expects boolean literals for boolean defaults
+                    $query = str_ireplace('BOOLEAN NULL DEFAULT 0', 'BOOLEAN NULL DEFAULT FALSE', $query);
+                    $query = str_ireplace('BOOLEAN NOT NULL DEFAULT 0', 'BOOLEAN NOT NULL DEFAULT FALSE', $query);
+                    $query = str_ireplace('BOOLEAN NULL DEFAULT 1', 'BOOLEAN NULL DEFAULT TRUE', $query);
+                    $query = str_ireplace('BOOLEAN NOT NULL DEFAULT 1', 'BOOLEAN NOT NULL DEFAULT TRUE', $query);
+                }
+
+                if ($driver === 'sqlsrv') {
+                    // SQL Server uses brackets for identifiers
+                    $query = preg_replace('/"([^"]+)"/', '[$1]', $query);
+                }
             }
 
             echo "\033[32mExecuting:\033[0m $query" . PHP_EOL;
@@ -88,7 +101,7 @@ abstract class Migration
                 $this->db->exec($query);
             } catch (Throwable $e) {
                 // Ensure we re-enable checks even if a query fails
-                if (!$isPgsql) {
+                if ($isMysql) {
                     $this->db->exec('SET FOREIGN_KEY_CHECKS=1;');
                 }
                 throw $e;
@@ -96,7 +109,7 @@ abstract class Migration
         }
 
         // Re-enable foreign key checks
-        if (!$isPgsql) {
+        if ($isMysql) {
             $this->db->exec('SET FOREIGN_KEY_CHECKS=1;');
         }
     }

@@ -42,8 +42,8 @@ class DatabaseUserProvider implements UserProviderInterface
         foreach ($credentials as $key => $value) {
             if (!str_contains($key, 'password')) {
                 $query->where($key, $value)
-                    ->include('roles')
-                    ->include('roles.permissions');
+                    ->with('roles')
+                    ->with('roles.permissions');
             }
         }
 

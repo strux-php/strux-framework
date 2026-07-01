@@ -11,6 +11,7 @@ use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
 use Strux\Component\Cache\Cache;
 use Strux\Component\Config\Config;
+use Strux\Component\Config\DirectoryInterface;
 use Strux\Component\Http\Cookie;
 use Strux\Component\Http\CookieInterface;
 use Strux\Component\Mail\Mailer;
@@ -82,6 +83,7 @@ class InfrastructureRegistry extends ServiceRegistry
 			MailerInterface::class,
 			static fn(ContainerInterface $c) => new Mailer(
 				config: $c->get(Config::class),
+				dirs: $c->get(DirectoryInterface::class),
 				view: $c->get(ViewInterface::class),
 				logger: $c->get(LoggerInterface::class)
 			)

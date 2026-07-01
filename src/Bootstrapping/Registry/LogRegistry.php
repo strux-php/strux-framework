@@ -49,5 +49,9 @@ class LogRegistry extends ServiceRegistry
 			: DirectoryResolver::getDefaults($app->getRootPath())['logs'];
 
 		Config::set('app.log_dir', $logDir);
+
+		if (!is_dir($logDir)) {
+			mkdir($logDir, 0775, true);
+		}
 	}
 }

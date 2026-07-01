@@ -14,6 +14,7 @@ use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Strux\Auth\AuthManager;
+use Strux\Auth\AuthProxy;
 use Strux\Component\Exceptions\AuthorizationException;
 use Strux\Component\Exceptions\Container\ContainerException;
 use Strux\Component\Http\Request;
@@ -40,6 +41,7 @@ abstract class BaseController
 	protected ?FlashInterface $flash = null;
 	protected ?ResponseFactoryInterface $responseFactory = null;
 	protected ?AuthManager $authManager = null;
+	protected AuthProxy $auth;
 	protected ?FormFactory $forms = null;
 
 	/**
@@ -98,6 +100,7 @@ abstract class BaseController
 			? $this->container->get(AuthManager::class)
 			: ContainerBridge::resolve(AuthManager::class)
 		);
+		$this->auth = new AuthProxy($this->authManager);
 		$this->forms = $forms ?? ($this->container->has(FormFactory::class)
 			? $this->container->get(FormFactory::class)
 			: ContainerBridge::resolve(FormFactory::class)
@@ -248,13 +251,4 @@ abstract class BaseController
 		}
 	}
 
-	/**
-	 * Provides access to the authentication service.
-	 * Mimics the global auth() helper.
-	 * @return AuthManager|null
-	 */
-	protected function auth(): ?AuthManager
-	{
-		return $this->auth();
-	}
 }

@@ -452,7 +452,7 @@ abstract class Model
 
                     $this->{$pkName} = $generated;
                     $attributesToSave[$pkName] = $generated;
-                } elseif ($hasNullValue && !$idAttr?->autoincrement) {
+                } elseif ($hasNullValue) {
                     unset($attributesToSave[$pkName]);
                 }
             }
