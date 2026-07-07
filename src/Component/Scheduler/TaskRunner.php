@@ -9,6 +9,7 @@ use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Strux\Component\Cache\Cache;
+use Strux\Component\Config\DirectoryInterface;
 use Strux\Component\Queue\QueueInterface;
 use Strux\Component\Queue\ShouldQueue;
 use Strux\Component\Scheduler\Events\TaskFailed;
@@ -107,7 +108,8 @@ class TaskRunner
 	private function executeTask(Task $task, string $id): void
 	{
 		// Capture output if requested
-		$capturing = $task->sendOutputTo !== null;
+		$capturing = $task->sendOutputTo !== null
+			&& ($task->sendOutputTo->path !== null || $task->sendOutputTo->filename !== null);
 		if ($capturing) {
 			ob_start();
 		}
@@ -177,11 +179,22 @@ class TaskRunner
 
 	private function writeOutput(Task $task, string $output): void
 	{
-		$dir = dirname($task->sendOutputTo->path);
+		$path = $task->sendOutputTo->path;
+
+		if ($path === null && $task->sendOutputTo->filename !== null) {
+			$dirs = $this->container->get(DirectoryInterface::class);
+			$path = $dirs->get('logs') . '/' . ltrim($task->sendOutputTo->filename, '/\\');
+		}
+
+		if ($path === null) {
+			return;
+		}
+
+		$dir = dirname($path);
 		if (!is_dir($dir)) {
 			mkdir($dir, 0755, true);
 		}
 		$flags = $task->sendOutputTo->append ? FILE_APPEND : 0;
-		file_put_contents($task->sendOutputTo->path, $output, $flags);
+		file_put_contents($path, $output, $flags);
 	}
 }

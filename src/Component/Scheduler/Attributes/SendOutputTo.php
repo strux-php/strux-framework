@@ -10,7 +10,8 @@ use Attribute;
 class SendOutputTo
 {
     public function __construct(
-        public string $path,
+        public ?string $path = null,
+        public ?string $filename = null,
         public bool $append = false
     ) {
     }
