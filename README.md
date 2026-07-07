@@ -10,7 +10,7 @@ built-in auth, scheduler, queue, event dispatcher, and validation — while keep
 
 - **Attribute-driven everything** — Routes (`#[Route]`), ORM schema (`#[Entity]`, `#[Column]`), auth (`#[Authorize]`), validation (`#[Validate]`), scheduling (`#[Schedule]`)
 - **Active Record ORM** with relationships (`#[OwnedBy]`, `#[OwnsMany]`, `#[OwnedByMany]`, polymorphic variants), JSON queries, pagination, soft deletes, and query caching
-- **Twig templating** engine
+- **Plates templating** (default, Twig available via adapter)
 - **Task Scheduler** — cron-expression and named-frequency task scheduling with mutex locking, output capture, conditional execution, and events
 - **Queue system** — database-driven background job processing
 - **Auth system** — Session and JWT sentinels, roles & permissions, email verification, password recovery, "remember me"
@@ -54,7 +54,8 @@ src/Config/
   Queue.php       # Queue connection (sync, database)
   Scheduler.php   # Timezone, environments, maintenance mode
   Maintenance.php # Maintenance mode settings
-  View.php        # Twig configuration
+  Plates.php      # Plates configuration (default)
+  Twig.php        # Twig adapter configuration
   Session.php     # Session driver and options
   Cors.php        # CORS middleware configuration
 ```
@@ -94,7 +95,7 @@ src/          # Application source code
       Migrations/
       Seeds/
   Registry/   # Service registries
-templates/    # Twig templates
+templates/    # View templates (Plates or Twig)
 web/          # Public entry point (index.php)
 var/          # Cache, logs, sessions
   cache/
@@ -179,11 +180,20 @@ Built-in middleware: `AuthorizationMiddleware`, `GuestMiddleware`, `EnsureEmailI
 
 ## Views
 
-Strux uses **Twig** as its templating engine.
+Strux uses **Plates** as its default templating engine, with **Twig** available via a built-in adapter.
 
 ```php
 return $this->view('pages/home', ['title' => 'Welcome']);
 ```
+
+### Plates (Default)
+
+```php
+<?php $this->layout('layouts/app', ['title' => 'Home']) ?>
+<h1><?= $this->e($title) ?></h1>
+```
+
+### Twig (Adapter)
 
 ```twig
 {% extends 'layout.html.twig' %}
@@ -191,6 +201,8 @@ return $this->view('pages/home', ['title' => 'Welcome']);
     <h1>{{ title }}</h1>
 {% endblock %}
 ```
+
+Configure your engine in `src/Config/View.php`.
 
 ---
 
