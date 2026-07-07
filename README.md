@@ -382,7 +382,7 @@ $queue->push(new SendEmailJob($user));
 
 ```bash
 php bin/console queue:init     # Create queue tables
-php bin/console queue:work     # Start queue worker
+php bin/console queue:start     # Start queue worker
 ```
 
 Scheduled tasks can also be pushed to the queue by implementing `ShouldQueue`.
@@ -395,7 +395,7 @@ Complete authentication with Session and JWT sentinels:
 
 ```php
 // Login
-if ($this->auth->attempt($request->only('email', 'password'))) {
+if ($this->auth->authenticate($request->input('email'), $request->input('password'))) {
     return $this->redirect('/dashboard');
 }
 
@@ -420,22 +420,16 @@ and fine-grained policies.
 Attribute-driven validation on models and forms:
 
 ```php
-use Strux\Component\Validation\Attributes\Validate;
-use Strux\Component\Validation\Rules\Required;
-use Strux\Component\Validation\Rules\Email;
-use Strux\Component\Validation\Rules\MinLength;
+$validator = new Validator($request->all());
 
-class CreateUserRequest
-{
-    #[Validate([Required::class, Email::class])]
-    public string $email;
+$validator->add('email', [new Required(), new Email()]);
+$validator->add('password', [new Required()]);
 
-    #[Validate([Required::class, new MinLength(8)])]
-    public string $password;
+if ($validator->isValid()) {
+	// Form is valid
+} else {
+	dump($validator->getErrors());
 }
-
-$validator = new RequestValidator($request);
-$validated = $validator->validate(CreateUserRequest::class);
 ```
 
 ---
@@ -468,7 +462,7 @@ php bin/console schedule:work                       # Start scheduler daemon
 
 # Queue
 php bin/console queue:init                          # Create queue tables
-php bin/console queue:work                          # Start queue worker
+php bin/console queue:start                          # Start queue worker
 
 # Other
 php bin/console auth:init                           # Scaffold auth system
@@ -483,20 +477,30 @@ php bin/console run                                 # Start dev server on :8000
 Attribute-driven forms with auto-binding and built-in rendering:
 
 ```php
-use Strux\Component\Form\Attributes\Form;
-use Strux\Component\Form\Attributes\Field;
+use Strux\Component\Form\Attributes\BooleanField;
+use Strux\Component\Form\Attributes\ButtonField;
+use Strux\Component\Form\Attributes\StringField;
+use Strux\Component\Form\Attributes\TextAreaField;
+use Strux\Component\Form\Attributes\URLField;
+use Strux\Component\Form\Form;
+use Strux\Component\Validation\Rules\Required;
 
-#[Form]
-class ArtworkForm
+class BrandForm extends Form
 {
-    #[Field(type: 'text', label: 'Title')]
-    public string $title;
+    #[StringField(label: 'Brand Name', rules: [
+        'required',
+        'alpha',
+    ])]
+    protected string $name;
 
-    #[Field(type: 'textarea', label: 'Description')]
-    public string $description;
+    #[StringField(label: 'Slug', rules: ['required', 'slug'])]
+    protected string $slug;
 
-    #[Field(type: 'number', label: 'Starting Price')]
-    public float $price;
+    #[TextAreaField(label: 'Description')]
+    protected string $description;
+
+    #[ButtonField(label: 'Save Brand')]
+    protected string $submit;
 }
 ```
 
