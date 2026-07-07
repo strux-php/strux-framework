@@ -54,8 +54,7 @@ src/Config/
   Queue.php       # Queue connection (sync, database)
   Scheduler.php   # Timezone, environments, maintenance mode
   Maintenance.php # Maintenance mode settings
-  Plates.php      # Plates configuration (default)
-  Twig.php        # Twig adapter configuration
+  View.php        # View engine configuration (Plates default, Twig adapter)
   Session.php     # Session driver and options
   Cors.php        # CORS middleware configuration
 ```
