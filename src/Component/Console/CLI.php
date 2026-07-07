@@ -18,6 +18,7 @@ use Strux\Component\Console\Traits\Generators;
 use Strux\Component\Console\Traits\QueueCommands;
 use Strux\Component\Console\Traits\ServerCommands;
 use Strux\Component\Console\Traits\SessionCommands;
+use Strux\Component\Console\Traits\SchedulerCommands;
 use Strux\Support\ContainerBridge;
 
 class CLI
@@ -28,6 +29,7 @@ class CLI
     use QueueCommands;
     use SessionCommands;
     use ServerCommands;
+    use SchedulerCommands;
 
     private ContainerInterface $container;
     private array $commands = [];
@@ -166,6 +168,19 @@ class CLI
             }
         );
 
+        // Scheduled Task
+        $this->register(
+            'new:scheduled-task {name}',
+            'Create a scheduled task class',
+            function ($n = null) {
+                if (!is_string($n) || empty($n)) {
+                    echo "\033[31mError: Scheduled task name is required.\033[0m\nUsage: php bin/console new:scheduled-task <Name>\n";
+                    return;
+                }
+                $this->createScheduledTask($n);
+            }
+        );
+
         // Module
         $this->register(
             'new:module {name}',
@@ -215,6 +230,10 @@ class CLI
         $this->register('queue:init', 'Init queue table', fn() => $this->initQueue(true));
         $this->register('queue:start', 'Start worker', fn() => $this->workQueue());
         $this->commands['queue:work'] = &$this->commands['queue:start'];
+
+        // --- Scheduler ---
+        $this->register('schedule:run', 'Run due scheduled tasks', fn() => $this->runSchedule());
+        $this->register('schedule:work', 'Start schedule daemon', fn() => $this->workSchedule());
 
         // --- Session ---
         $this->register('session:init', 'Init session table', fn() => $this->initSession(true));

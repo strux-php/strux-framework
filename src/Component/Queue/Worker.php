@@ -87,7 +87,7 @@ class Worker implements WorkerInterface
 
         foreach ($reflectionMethod->getParameters() as $param) {
             $type = $param->getType();
-            if ($type && !$type->isBuiltin()) {
+            if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
                 $dependencies[] = $this->container->get($type->getName());
             }
         }

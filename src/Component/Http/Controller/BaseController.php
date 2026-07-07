@@ -63,6 +63,7 @@ abstract class BaseController
 		?FormFactory $forms = null
 	) {
 		$this->container = $container ?? ContainerBridge::getContainer();
+
 		$this->request = $request ?? ($this->container->has(Request::class)
 			? $this->container->get(Request::class)
 			: ContainerBridge::resolve(Request::class)
@@ -250,5 +251,4 @@ abstract class BaseController
 			$this->logger->info("[" . static::class . "] " . $message, $context);
 		}
 	}
-
 }

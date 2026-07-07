@@ -106,6 +106,11 @@ class MySqlDialect extends SqlDialect
         return "DROP INDEX " . $this->quote($indexName) . " ON " . $this->quoteTable($table);
     }
 
+    public function wrapJsonPath(string $column, string $path): string
+    {
+        return sprintf("JSON_UNQUOTE(JSON_EXTRACT(%s, '%s'))", $this->quote($column), $path);
+    }
+
     public function normalizeType(string $type): string
     {
         $type = parent::normalizeType($type);

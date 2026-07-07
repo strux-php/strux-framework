@@ -393,6 +393,47 @@ PHP;
         }
     }
 
+    private function createScheduledTask(string $name): void
+    {
+        try {
+            $filePath = $this->getPathForType('job', $name, 'General');
+            $this->ensureDirectoryExists($filePath);
+
+            if (file_exists($filePath)) {
+                echo "\033[31mConflict: $filePath already exists.\033[0m\n";
+                return;
+            }
+
+            $namespace = $this->getNamespaceFromPath($filePath);
+            $className = basename($name);
+
+            $content = <<<PHP
+<?php
+
+declare(strict_types=1);
+
+namespace {$namespace};
+
+use Strux\Component\Scheduler\Attributes\Schedule;
+use Strux\Component\Scheduler\Attributes\WithoutOverlapping;
+
+#[Schedule(frequency: 'daily')]
+class {$className}
+{
+    public function handle(): void
+    {
+        // Task logic here
+    }
+}
+PHP;
+            file_put_contents($filePath, $content);
+            echo "\033[32mScheduled task created: $filePath\033[0m\n";
+
+        } catch (\Exception $e) {
+            echo "\033[31mError: " . $e->getMessage() . "\033[0m\n";
+        }
+    }
+
     private function createModule(string $name): void
     {
         try {

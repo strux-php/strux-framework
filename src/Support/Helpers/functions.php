@@ -548,6 +548,30 @@ if (!function_exists('dd')) {
     }
 }
 
+if (!function_exists('app')) {
+    /**
+     * Get the Application instance.
+     *
+     * @return \Strux\Foundation\Application
+     */
+    function app(): \Strux\Foundation\Application
+    {
+        return ContainerBridge::resolve(\Strux\Foundation\Application::class);
+    }
+}
+
+if (!function_exists('db')) {
+    /**
+     * Get a fresh ad-hoc query builder.
+     *
+     * @return \Strux\Component\Database\ORM\Adhoc
+     */
+    function db(): \Strux\Component\Database\ORM\Adhoc
+    {
+        return ContainerBridge::get('db.query');
+    }
+}
+
 if (!function_exists('user')) {
     /**
      * Get the currently authenticated user.

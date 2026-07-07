@@ -117,7 +117,22 @@ class HtmlDumper
 		$elementsRendered = 0;
 
 		// Handle stdClass or general iterable objects
-		if ($obj instanceof stdClass || empty($properties)) {
+		if (method_exists($obj, '__debugInfo')) {
+			$debugData = $obj->__debugInfo();
+			$count = count($debugData);
+			$output = '<span class="php-dumper-object-keyword">object</span>(<span class="php-dumper-classname">' . htmlspecialchars($className, ENT_QUOTES, 'UTF-8') . '</span>)<span class="php-dumper-meta">(size=' . $count . ')</span> <label class="php-dumper-toggle" for="' . $id . '">▼</label><input type="checkbox" id="' . $id . '" class="php-dumper-toggle-checkbox" checked><span class="php-dumper-punctuation">{</span><div class="php-dumper-collapsible">';
+			
+			foreach ($debugData as $key => &$value) {
+				if ($elementsRendered >= self::$maxArrayElements) {
+					$output .= str_repeat(self::$indentation, $depth + 1) . '<span class="php-dumper-meta">&hellip; (' . (count($debugData) - $elementsRendered) . ' more properties)</span><br>';
+					break;
+				}
+				$output .= str_repeat(self::$indentation, $depth + 1);
+				$output .= '<span class="php-dumper-property-web">debug</span> <span class="php-dumper-key">$' . htmlspecialchars((string)$key, ENT_QUOTES, 'UTF-8') . '</span> <span class="php-dumper-punctuation">=</span> ';
+				$output .= self::formatVariable($value, $depth + 1) . '<br>';
+				$elementsRendered++;
+			}
+		} elseif ($obj instanceof stdClass || empty($properties)) {
 			$objectVars = get_object_vars($obj);
 			$count = count($objectVars);
 			$output = '<span class="php-dumper-object-keyword">object</span>(<span class="php-dumper-classname">' . htmlspecialchars($className, ENT_QUOTES, 'UTF-8') . '</span>)<span class="php-dumper-meta">(size=' . $count . ')</span> <label class="php-dumper-toggle" for="' . $id . '">▼</label><input type="checkbox" id="' . $id . '" class="php-dumper-toggle-checkbox" checked><span class="php-dumper-punctuation">{</span><div class="php-dumper-collapsible">';

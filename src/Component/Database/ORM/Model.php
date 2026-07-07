@@ -36,7 +36,7 @@ use Strux\Component\Database\ORM\Events\Updating;
 use Strux\Support\ContainerBridge;
 use Throwable;
 
-abstract class Model
+abstract class Model implements Builder
 {
     use HasAttributes, HasEvents, HasQueryBuilder, HasRelationships, HasTimestamps, HasValidation;
 

@@ -30,5 +30,9 @@ class DatabaseRegistry extends ServiceRegistry
             SeederRunner::class,
             static fn(ContainerInterface $c) => new SeederRunner($c->get(PDO::class), $c)
         );
+
+        $this->container->transient('db.query', static function () {
+            return (new \Strux\Component\Database\ORM\Adhoc())->query();
+        });
     }
 }

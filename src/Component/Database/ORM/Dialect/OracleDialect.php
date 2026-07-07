@@ -91,6 +91,11 @@ class OracleDialect extends SqlDialect
         return $sql;
     }
 
+    public function wrapJsonPath(string $column, string $path): string
+    {
+        return sprintf("JSON_VALUE(%s, '%s')", $this->quote($column), $path);
+    }
+
     public function buildUpsertQuery(string $table, array $columns, array $placeholders, array $uniqueBy, array $update): string
     {
         $columnsStr = implode(', ', array_map([$this, 'quote'], $columns));

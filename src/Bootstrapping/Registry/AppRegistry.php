@@ -35,6 +35,7 @@ class AppRegistry extends ServiceRegistry
 		MiddlewareRegistry::class,
 		InfrastructureRegistry::class,
 		QueueRegistry::class,
+		SchedulerRegistry::class,
 		FormRegistry::class,
 	];
 

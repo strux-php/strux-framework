@@ -90,7 +90,7 @@ trait HasRelationships
         return $builder;
     }
 
-    public function with(mixed ...$relations): static
+    protected function with(mixed ...$relations): static
     {
         return $this->include(...$relations);
     }

@@ -46,7 +46,7 @@ trait HasQueryBuilder
     private array $_excludes = [];
     protected static array $_globalEagerLoadStack = [];
 
-    public function without(mixed ...$relations): static
+    protected function without(mixed ...$relations): static
     {
         $builder = $this->_getQueryBuilderInstance();
         foreach ($relations as $relation) {
@@ -350,12 +350,53 @@ trait HasQueryBuilder
         return $this->whereLike($column, $value, $caseSensitive, 'AND', true);
     }
 
-    protected function orWhereNotLike(string $column, string $value, bool $caseSensitive = false): static
-    {
-        return $this->whereLike($column, $value, $caseSensitive, 'OR', true);
-    }
+	protected function orWhereNotLike(string $column, string $value, bool $caseSensitive = false): static
+	{
+		return $this->whereLike($column, $value, $caseSensitive, 'OR', true);
+	}
 
-    // --- Joins ---
+	// --- JSON Where ---
+
+	protected function whereJson(string $column, mixed $operator, mixed $value = null, string $boolean = 'AND'): static
+	{
+		$builder = $this->_getQueryBuilderInstance();
+
+		if (func_num_args() === 2) {
+			$value = $operator;
+			$operator = '=';
+		}
+
+		$operator = strtoupper((string) $operator);
+		[$column, $path] = $this->parseJsonColumn($column);
+		$needsBinding = !in_array($operator, ['IS NULL', 'IS NOT NULL']);
+
+		$builder->_wheres[] = [
+			'type' => 'json',
+			'column' => $column,
+			'path' => $path,
+			'operator' => $operator,
+			'value' => $value,
+			'boolean' => $boolean,
+			'bindings' => $needsBinding ? [$value] : [],
+		];
+
+		return $builder;
+	}
+
+	protected function orWhereJson(string $column, mixed $operator, mixed $value = null): static
+	{
+		return $this->whereJson($column, $operator, $value, 'OR');
+	}
+
+	private function parseJsonColumn(string $column): array
+	{
+		$parts = explode('->', $column);
+		$column = array_shift($parts);
+		$path = '$.' . implode('.', $parts);
+		return [$column, $path];
+	}
+
+	// --- Joins ---
 
     protected function _addJoin(string $type, string $table, string $first, ?string $operatorOrSecond = null, ?string $second = null): static
     {

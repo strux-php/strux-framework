@@ -99,6 +99,13 @@ class PostgresDialect extends SqlDialect
         return "ALTER TABLE " . $this->quoteTable($table) . " DROP CONSTRAINT " . $this->quote($constraint);
     }
 
+    public function wrapJsonPath(string $column, string $path): string
+    {
+        $segments = explode('.', substr($path, 2));
+        $pgPath = '{' . implode(',', $segments) . '}';
+        return sprintf("%s#>>'%s'", $this->quote($column), $pgPath);
+    }
+
     public function normalizeType(string $type): string
     {
         $type = parent::normalizeType($type);

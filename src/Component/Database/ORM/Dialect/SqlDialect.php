@@ -121,9 +121,28 @@ abstract class SqlDialect
                 $sql .= $this->quote($where['column']) . " {$operator} ({$placeholders})";
             } elseif ($where['type'] === 'basic') {
                 $sql .= $this->quote($where['column']) . " {$where['operator']} ?";
+            } elseif ($where['type'] === 'json') {
+                $sql .= $this->compileJsonWhere($where);
             }
         }
         return $sql;
+    }
+
+    protected function compileJsonWhere(array $where): string
+    {
+        $jsonExpr = $this->wrapJsonPath($where['column'], $where['path']);
+        $needsBinding = !in_array($where['operator'], ['IS NULL', 'IS NOT NULL']);
+
+        if ($needsBinding) {
+            return "{$jsonExpr} {$where['operator']} ?";
+        }
+
+        return "{$jsonExpr} {$where['operator']}";
+    }
+
+    protected function wrapJsonPath(string $column, string $path): string
+    {
+        return sprintf("json_extract(%s, '%s')", $this->quote($column), $path);
     }
 
     public function buildUpdateQuery(string $table, array $columns, array $wheres = []): string
