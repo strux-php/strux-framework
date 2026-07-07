@@ -1,83 +1,65 @@
 # Strux Framework
 
-Strux is a modern, lightweight, and powerful **PHP framework** designed for building robust web applications and APIs.
-It combines a clean architecture with a rich feature set—including an Active Record ORM, built-in queue system, event
-dispatcher, and flexible middleware—while maintaining a minimal core with **few external dependencies**.
-
-Strux strictly adheres to **PSR-1, PSR-2, PSR-3, PSR-4, and PSR-7** standards for maximum interoperability.
+Strux is a modern, lightweight, **attribute-driven PHP framework** for building web applications and APIs.
+It combines PHP 8.4+ features with a clean architecture — Active Record ORM, attribute-based routing,
+built-in auth, scheduler, queue, event dispatcher, and validation — while keeping a minimal core.
 
 ---
 
-## 📋 Table of Contents
+## Features
 
-* [Features](#features)
-* [Requirements](#requirements)
-* [Installation](#installation)
-* [Configuration](#configuration)
-* [Directory Structure](#directory-structure)
-* [Routing](#routing)
-* [Controllers](#controllers)
-* [Requests & Responses](#requests--responses)
-* [Middleware](#middleware)
-* [Views & Templating](#views--templating)
-* [Database & ORM](#database--orm)
-* [Migrations](#migrations)
-* [Query Builder](#query-builder)
-* [ORM Relationships](#model-relationships)
-* [Event Dispatcher](#event-dispatcher)
-* [Queue System](#queue-system)
-* [Security](#security)
-* [Command-Line Interface (CLI)](#command-line-interface-cli)
-* [License](#license)
+- **Attribute-driven everything** — Routes (`#[Route]`), ORM schema (`#[Entity]`, `#[Column]`), auth (`#[Authorize]`), validation (`#[Validate]`), scheduling (`#[Schedule]`)
+- **Active Record ORM** with relationships (`#[OwnedBy]`, `#[OwnsMany]`, `#[OwnedByMany]`, polymorphic variants), JSON queries, pagination, soft deletes, and query caching
+- **Twig templating** engine
+- **Task Scheduler** — cron-expression and named-frequency task scheduling with mutex locking, output capture, conditional execution, and events
+- **Queue system** — database-driven background job processing
+- **Auth system** — Session and JWT sentinels, roles & permissions, email verification, password recovery, "remember me"
+- **Form system** — attribute-driven forms with auto-binding to requests, models, or arrays
+- **Event dispatcher** (PSR-14)
+- **CLI tooling** for rapid development (scaffolding, migrations, queue, scheduler)
+- **Multi-database support** — MySQL, MariaDB, PostgreSQL, SQLite, SQL Server, Oracle
+- **Zero external dependencies** (beyond PHP extensions)
 
 ---
 
-## ✨ Features
+## Requirements
 
-* PSR-compliant architecture (PSR-1, 2, 3, 4, 7)
-* Zero external dependencies
-* Attribute-based routing and ORM
-* Active Record ORM with relationships
-* Middleware dispatcher
-* Event & queue systems
-* Built-in validation and security
-* CLI tooling for rapid development
-* Plates templating (Twig adapter available)
+- PHP **8.4+**
+- Composer
+- PDO extension (for database access)
+- MBString, XML extensions
 
 ---
 
-## 🧰 Requirements
-
-* PHP **8.2+**
-* Composer
-* PDO extension (for database access)
-
----
-
-## 🚀 Installation
-
-### Create a New Project
+## Installation
 
 ```bash
 composer create-project strux/strux-app my-app
 cd my-app
-```
-
-### Serve the Application
-
-```bash
 php bin/console run
 ```
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-Configuration files are stored in the `etc/` directory and are automatically loaded.
+Configuration files live in `src/Config/`. Each config is a PHP class implementing `ConfigInterface`:
 
-### Environment Variables
+```
+src/Config/
+  App.php         # Application name, URL, debug mode
+  Database.php    # Database connections (SQLite, MySQL, PostgreSQL, etc.)
+  Auth.php        # Sentinels, password rules, email verification
+  Cache.php       # Cache driver (filesystem, array, APCu)
+  Queue.php       # Queue connection (sync, database)
+  Scheduler.php   # Timezone, environments, maintenance mode
+  Maintenance.php # Maintenance mode settings
+  View.php        # Twig configuration
+  Session.php     # Session driver and options
+  Cors.php        # CORS middleware configuration
+```
 
-Copy the example environment file and update it:
+Environment variables are loaded from `.env`:
 
 ```bash
 cp .env.example .env
@@ -86,330 +68,442 @@ cp .env.example .env
 ```env
 APP_ENV=local
 APP_DEBUG=true
-
-DB_CONNECTION=mysql
+DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
-DB_DATABASE=strux_db
-DB_USERNAME=root
+DB_DATABASE=my_app
+DB_USERNAME=postgres
 DB_PASSWORD=secret
 ```
 
 ---
 
-## 📂 Directory Structure
+## Directory Structure
 
-```text
-bin/        # CLI entry point
-etc/        # Configuration & route files
-src/        # Application source code
-templates/  # Views, assets, language files
-web/        # Public entry point (index.php)
-var/        # Cache, logs, sessions
+```
+bin/          # CLI entry point (console)
+src/          # Application source code
+  App.php     # Application class
+  Config/     # Configuration files
+  Domain/     # Domain-driven modules (Entity, Job, Listener, Service)
+  Http/
+    Controllers/
+      Web/    # Web controllers (HTML)
+      Api/    # API controllers (JSON)
+  Infrastructure/
+    Database/
+      Migrations/
+      Seeds/
+  Registry/   # Service registries
+templates/    # Twig templates
+web/          # Public entry point (index.php)
+var/          # Cache, logs, sessions
+  cache/
+  logs/
 ```
 
 ---
 
-## 🛣 Routing
+## Routing
 
-Routes are defined in `etc/routes/web.php` or `etc/routes/api.php`.
-
-### Fluent Routing
+Routes are defined via PHP attributes directly on controller methods:
 
 ```php
-$router->get('/', [HomeController::class, 'index']);
-$router->get('/users/:id', [UserController::class, 'show']);
-$router->post('/login', [AuthController::class, 'login'])->name('login');
-```
+use Strux\Component\Routing\Attributes\Route;
+use Strux\Component\Routing\Attributes\Prefix;
+use Strux\Component\Routing\Attributes\RouteGroup;
 
-### Attribute-Based Routing
-
-```php
-use Strux\Component\Attributes\Route;
-
-class UserController
+#[Prefix('/artworks')]
+class ArtworkController extends Controller
 {
-    #[Route('/users/:id', methods: ['GET'])]
-    public function show(int $id) {}
-}
-```
-
----
-
-## 🎮 Controllers
-
-Controllers live in `src/Http/Controller` and receive dependencies automatically via the service container.
-
-```php
-class PageController extends Controller
-{
-    public function home(Request $request)
+    #[Route('', methods: ['GET'], name: 'artworks.index')]
+    public function index(): Response
     {
-        return $this->view('home', ['name' => 'Kernel']);
+        return $this->view('artworks/index', ['artworks' => Artwork::all()]);
+    }
+
+    #[Route('/:id', methods: ['GET'], name: 'artworks.show')]
+    public function show(string $id): Response
+    {
+        return $this->view('artworks/show', ['artwork' => Artwork::findOrFail($id)]);
     }
 }
 ```
 
----
-
-## 📥 Requests & Responses
-
-### Request Access
-
-```php
-$request->input('name');
-$request->safe()->input('name'); // Sanitized
-$request->query('page');
-$request->header('User-Agent');
-$request->file('avatar');
-```
-
-### Responses
-
-```php
-return $this->view('profile');
-return $this->json(['status' => 'ok']);
-return $this->redirect('/login');
-```
+No separate route files needed.
 
 ---
 
-## 🛡 Middleware
+## Controllers
 
-Middleware intercepts requests before controllers execute.
+Controllers live in `src/Http/Controllers/Web/` (HTML) or `src/Http/Controllers/Api/` (JSON).
+They extend `Strux\Component\Http\Controller\Web\Controller` or `Api\Controller`.
 
 ```php
-class AuthMiddleware implements MiddlewareInterface
+#[Prefix('/dashboard')]
+#[Middleware([AuthorizationMiddleware::class])]
+class DashboardController extends Controller
 {
-    public function process(
-        ServerRequestInterface $request, 
-        RequestHandlerInterface $handler): ResponseInterface
+    public function __construct(
+        private readonly ArtworkRepository $artworks
+    ) {}
+
+    #[Route('', methods: ['GET'], name: 'dashboard.index')]
+    public function index(): Response
     {
-        if (!Auth::check()) {
-            return $this->responseFactory->createResponse(302)
-            ->withHeader('Location', '/login');
-        }
-        return $handler->handle($request);
+        return $this->view('dashboard/index', [
+            'stats' => $this->artworks->getDashboardStats()
+        ]);
     }
 }
 ```
 
-* Global middleware: `etc/middleware.php`
-* Route-specific or attribute-based registration supported
+Dependencies are injected automatically via the container.
 
 ---
 
-## 🎨 Views & Templating
+## Middleware
 
-Strux uses **Plates** by default (Twig supported via adapter).
+Middleware classes implement `MiddlewareInterface` and are applied via the `#[Middleware]` attribute:
 
 ```php
-return $this->view('auth/login', ['error' => 'Invalid credentials']);
+#[Middleware([AuthMiddleware::class])]
+#[Route('/admin', methods: ['GET'])]
+public function admin(): Response { ... }
 ```
 
+Global middleware is configured in `src/Registry/MiddlewareRegistry.php`.
+
+Built-in middleware: `AuthorizationMiddleware`, `GuestMiddleware`, `EnsureEmailIsVerified`, `CorsMiddleware`, `CsrfMiddleware`.
+
+---
+
+## Views
+
+Strux uses **Twig** as its templating engine.
+
 ```php
-<?php $this->layout('layouts/app', ['title' => 'Login']) ?>
-<h1>Login</h1>
+return $this->view('pages/home', ['title' => 'Welcome']);
+```
+
+```twig
+{% extends 'layout.html.twig' %}
+{% block content %}
+    <h1>{{ title }}</h1>
+{% endblock %}
 ```
 
 ---
 
-## 🗄 Database & ORM
+## Database & ORM
 
-Strux includes an **Active Record ORM** built from the ground up using modern PHP Attributes. Think of the ORM (Object-Relational Mapper) as a translator between your raw database tables and your clean PHP code. 
+Strux includes an **Active Record ORM** driven by PHP attributes.
 
-### ORM Definition
-
-You define your database tables simply by creating PHP classes and adding "Attributes" (the `#[...]` syntax) above your properties.
+### Defining a Model
 
 ```php
-use Strux\Component\Database\Schema\Attributes\Table;
+use Strux\Component\Database\Schema\Attributes\Entity;
 use Strux\Component\Database\Schema\Attributes\Column;
 use Strux\Component\Database\Schema\Attributes\Id;
-use Strux\Component\Database\Schema\Attributes\Index;
-use Strux\Component\Database\Schema\Attributes\Unique;
+use Strux\Component\Database\Schema\Types\Field;
 use Strux\Component\Database\ORM\Model;
 
-#[Table('users')]
+#[Entity(table: 'users')]
 class User extends Model
 {
-    #[Id]
-    #[Column]
-    public int $id;
+    #[Id(autoincrement: false, autoGenerate: 'uuid')]
+    #[Column(type: Field::uuid)]
+    public string $id = '';
 
-    #[Column]
-    public string $username;
+    #[Column(type: Field::string, length: 150)]
+    public string $name;
+
+    #[Column(type: Field::string, unique: true)]
+    public string $email;
 }
 ```
-
-> [!NOTE]
-> When you run database migrations, the framework automatically scans your code for these attributes and builds your database tables for you! You rarely have to write raw SQL.
 
 ### Basic Usage
 
 ```php
-// Creating a new record
+// Create
 $user = new User();
-$user->username = 'john_doe';
+$user->name = 'John';
+$user->email = 'john@example.com';
 $user->save();
 
-// Finding and deleting a record
-$user = User::find(1);
+// Find
+$user = User::find($id);
+$users = User::where('active', true)->get();
+
+// Update
+$user->name = 'Jane';
+$user->save();
+
+// Delete
 $user->delete();
 ```
 
-### ⚡ Database Indexing (Advanced Dialect-Agnostic Support)
-
-Indexes are like the index at the back of a large encyclopedia. Without an index, if you want to find every page that mentions "Apples", you have to read the entire book from start to finish. With an index, you just look up "Apples" and go straight to the correct pages. 
-
-In databases, indexes speed up your queries significantly. Strux provides a powerful, **dialect-agnostic** indexing system. This means whether you are using MySQL, PostgreSQL, SQLite, or SQL Server, Strux knows the exact right grammar to safely create and destroy your indexes!
-
-#### Single-Column Indexes
-If you frequently search for users by their `status` or `role`, you should index that column. You can do this by simply adding the `#[Index]` attribute directly to the property in your class.
+### Query Builder
 
 ```php
-    #[Column]
-    #[Index]
-    public string $status;
-```
-> [!TIP]
-> The framework will automatically name this index something like `users_status_idx`. If you want to give it a custom name for strict database administration policies, you can do: `#[Index(name: 'my_custom_status_idx')]`.
-
-#### Unique Indexes
-If you want to ensure that two users can never have the same email address, you use a Unique Index. This enforces strict data integrity at the database level. Attempting to save a duplicate will throw a database error.
-
-```php
-    #[Column]
-    #[Unique] // Or alternatively: #[Index(unique: true)]
-    public string $email;
-```
-
-#### Composite Indexes (Multi-Column)
-Sometimes you query the database using multiple columns at the exact same time. For example, finding a user by checking their `firstname` AND their `lastname`. For this, you want a Composite Index to maximize performance. 
-
-Because a composite index involves multiple columns acting together, you apply this attribute to the **Class** itself, not an individual property.
-
-```php
-#[Table('users')]
-#[Index(columns: ['firstname', 'lastname'], name: 'idx_user_name')]
-class User extends Model
-{
-    // ...
-}
-```
-
-> [!WARNING]
-> Order matters incredibly in composite indexes! An index defined on `['firstname', 'lastname']` will drastically speed up queries searching by *both* names, OR queries searching by *just* `firstname`. However, it will **NOT** help queries searching by just `lastname`. Always order your most-queried columns first.
-
----
-
-## 🏗 Migrations
-
-Database migrations are like "version control" (like Git) for your database structure. They allow you to define your tables in code and share them easily with your team.
-
-### Auto-Generating Migrations
-Strux is incredibly smart. It compares the PHP `#[Column]` and `#[Index]` attributes in your code against your actual live database. If it notices you added a new index or a new column, it will automatically generate a migration file for you containing the exact SQL queries needed to update the database!
-
-```bash
-# Analyze code and automatically generate SQL differences
-php bin/console db:migrate
-
-# Apply the newly generated differences to the database
-php bin/console db:upgrade
-```
-
-> [!IMPORTANT]
-> The auto-generated migration files also safely include `down()` methods that tell the database exactly how to reverse the changes if you make a mistake and need to rollback. Thanks to our dialect-agnostic engine, the rollback logic perfectly handles tearing down tables, dropping columns, and safely removing composite indexes whether you're on MySQL, Postgres, SQLite, or SQL Server!
-
----
-
-## 🔍 Query Builder
-
-Under the hood, the ORM relies on a fluent Query Builder you can use for complex data retrieval.
-
-```php
-$users = User::query()
-    ->where('active', 1)
+$users = User::where('status', 'active')
     ->where('age', '>', 18)
     ->orderBy('created_at', 'DESC')
-    ->limit(10)
+    ->take(10)
     ->get();
 ```
 
----
+### Relationships
 
-## 🔗 ORM Relationships
-
-Supported relationships:
-
-* `#[HasOne]`
-* `#[HasMany]`
-* `#[BelongsTo]`
-* `#[BelongsToMany]`
+| Attribute | Type |
+|-----------|------|
+| `#[OwnsOne]` | One-to-One |
+| `#[OwnsMany]` | One-to-Many |
+| `#[OwnedBy]` | Inverse One-to-One/Many |
+| `#[OwnedByMany]` | Many-to-Many |
+| `#[OwnsOnePoly]` | Polymorphic One-to-One |
+| `#[OwnsManyPoly]` | Polymorphic One-to-Many |
+| `#[OwnedByAny]` | Polymorphic Inverse |
 
 ```php
-use Strux\Component\Database\ORM\Attributes\BelongsToMany;
+use Strux\Component\Database\ORM\Attributes\OwnsMany;
+use Strux\Component\Database\ORM\Attributes\OwnedBy;
 
-class Student extends Model 
+class Brand extends Model
 {
-    #[BelongsToMany(related: Course::class, pivotTable: 'enrollments')]
-    public Collection $courses;
+    #[OwnsMany(Product::class, 'brandId', 'id')]
+    public Collection $products;
+}
+
+class Product extends Model
+{
+    #[OwnedBy(Brand::class, 'brandId', 'id')]
+    public ?Brand $brand;
 }
 ```
 
-```php
-$student->courses; // Fetch courses
-$student->courses()->sync([1, 2, 3]); // Synchronize pivot table relationships
-```
+### Additional ORM Features
+
+- **Schema attributes** — `#[Index]`, `#[Unique]`, composite indexes on classes
+- **Auto-migrations** — `php bin/console db:migrate` generates migrations by diffing attributes against the database
+- **Model events** — `Saving`, `Saved`, `Creating`, `Created`, `Updating`, `Updated`, `Deleting`, `Deleted`, `Retrieved`
+- **Soft deletes** — `use HasSoftDeletes`
+- **Auto-validation** — `#[Validate]` rules on model properties
+- **Query caching** — `->stashFor(60)` caches query results
+- **Pagination** — `->paginate(15)`
+- **Transactions** — `Model::transaction(fn() => ...)`
+- **Entity builders** — generate test data
+- **Ad-hoc queries** — query without a model using `DB::table('users')`
 
 ---
 
-## 📡 Event Dispatcher
+## Task Scheduler
+
+Automate recurring tasks with PHP attributes. Tasks are discovered automatically by scanning `src/`.
 
 ```php
-Event::dispatch(new UserRegistered($user));
+use Strux\Component\Scheduler\Attributes\Schedule;
+use Strux\Component\Scheduler\Attributes\WithoutOverlapping;
+use Strux\Component\Scheduler\Attributes\SendOutputTo;
+
+#[Schedule(frequency: 'daily')]
+#[WithoutOverlapping(expiresAfter: 30)]
+#[SendOutputTo(filename: 'daily-report.log', append: true)]
+class GenerateDailyReport
+{
+    public function handle(): void
+    {
+        echo "Generating report...\n";
+    }
+}
 ```
 
+```bash
+# Run once (for crontab: * * * * * cd /app && php bin/console schedule:run)
+php bin/console schedule:run
+
+# Daemon mode (runs continuously)
+php bin/console schedule:work
+```
+
+Supported features: cron expressions, named frequencies (`everyminute`, `everyfiveminutes`, `daily`, etc.),
+timezone support, mutex locking (`#[WithoutOverlapping]`), conditional execution (`#[RunWhen]`),
+output capture (`#[SendOutputTo]`), events (`TaskStarting`, `TaskSuccess`, `TaskFailed`, `TaskSkipped`),
+and maintenance mode awareness.
+
+---
+
+## Event Dispatcher
+
+The framework includes a PSR-14 event dispatcher.
+
 ```php
+use Strux\Component\Events\EventDispatcher;
+
+class UserRegistered
+{
+    public function __construct(public readonly User $user) {}
+}
+
+// Dispatching
+$events->dispatch(new UserRegistered($user));
+
+// Listening
 class SendWelcomeEmail
 {
-    public function handle(UserRegistered $event) {}
+    public function handle(UserRegistered $event): void
+    {
+        // Send email to $event->user
+    }
+}
+
+$events->addListener(UserRegistered::class, [SendWelcomeEmail::class, 'handle']);
+```
+
+---
+
+## Queue System
+
+Database-driven background job processing.
+
+```php
+use Strux\Component\Queue\QueueInterface;
+use Strux\Component\Queue\ShouldQueue;
+
+class SendEmailJob implements ShouldQueue
+{
+    public function __construct(private readonly User $user) {}
+    public function handle(): void { /* ... */ }
+}
+
+// Push to queue
+$queue->push(new SendEmailJob($user));
+```
+
+```bash
+php bin/console queue:init     # Create queue tables
+php bin/console queue:work     # Start queue worker
+```
+
+Scheduled tasks can also be pushed to the queue by implementing `ShouldQueue`.
+
+---
+
+## Auth System
+
+Complete authentication with Session and JWT sentinels:
+
+```php
+// Login
+if ($this->auth->attempt($request->only('email', 'password'))) {
+    return $this->redirect('/dashboard');
+}
+
+// Get current user
+$user = $this->auth->user();
+
+// Check permissions
+$user->can('create_artworks');
+
+// Protect routes
+#[Middleware([AuthorizationMiddleware::class])]
+```
+
+Features: registration, login/logout, email verification, password recovery, "remember me",
+roles & permissions (`#[Authorize('create_artworks')]`), route protection middleware,
+and fine-grained policies.
+
+---
+
+## Validation
+
+Attribute-driven validation on models and forms:
+
+```php
+use Strux\Component\Validation\Attributes\Validate;
+use Strux\Component\Validation\Rules\Required;
+use Strux\Component\Validation\Rules\Email;
+use Strux\Component\Validation\Rules\MinLength;
+
+class CreateUserRequest
+{
+    #[Validate([Required::class, Email::class])]
+    public string $email;
+
+    #[Validate([Required::class, new MinLength(8)])]
+    public string $password;
+}
+
+$validator = new RequestValidator($request);
+$validated = $validator->validate(CreateUserRequest::class);
+```
+
+---
+
+## CLI Commands
+
+```bash
+php bin/console                                    # List all commands
+
+# Scaffolding
+php bin/console new:controller Home                # Create a controller
+php bin/console new:entity Product --domain=Catalog # Create a model
+php bin/console new:job SendEmail                   # Create a queue job
+php bin/console new:form ContactForm                # Create a form
+php bin/console new:scheduled-task CleanupTemp      # Create a scheduled task
+php bin/console new:module Auction                  # Scaffold a domain module
+php bin/console new:middleware Auth                 # Create middleware
+php bin/console new:registry Custom                # Create a service registry
+
+# Database
+php bin/console db:init                             # Create database tables
+php bin/console db:migrate                          # Auto-generate migration
+php bin/console db:upgrade                          # Run pending migrations
+php bin/console db:rollback                         # Revert last migration
+php bin/console db:seed                             # Run database seeder
+
+# Scheduler
+php bin/console schedule:run                        # Run due tasks once
+php bin/console schedule:work                       # Start scheduler daemon
+
+# Queue
+php bin/console queue:init                          # Create queue tables
+php bin/console queue:work                          # Start queue worker
+
+# Other
+php bin/console auth:init                           # Scaffold auth system
+php bin/console session:init                        # Create session table
+php bin/console run                                 # Start dev server on :8000
+```
+
+---
+
+## Forms
+
+Attribute-driven forms with auto-binding and built-in rendering:
+
+```php
+use Strux\Component\Form\Attributes\Form;
+use Strux\Component\Form\Attributes\Field;
+
+#[Form]
+class ArtworkForm
+{
+    #[Field(type: 'text', label: 'Title')]
+    public string $title;
+
+    #[Field(type: 'textarea', label: 'Description')]
+    public string $description;
+
+    #[Field(type: 'number', label: 'Starting Price')]
+    public float $price;
 }
 ```
 
----
-
-## 📨 Queue System
-
-```php
-Queue::push(new SendEmailJob($user));
-```
-Start the worker:
-```bash
-php bin/console queue:start
-```
+Forms can bind to requests, models, or arrays, with auto-validation and Twig rendering.
 
 ---
 
-## 🔒 Security
-
-* Authentication via Sentinels (Session, JWT)
-* Authorization with `#[Authorize]` attributes
-* CSRF protection middleware
-* Built-in validation system (`Required`, `Email`, `MinLength`, etc.)
-
----
-
-## 💻 Command-Line Interface (CLI)
-
-```bash
-php bin/console
-php bin/console new:controller
-php bin/console new:model
-php bin/console db:seed
-```
-
----
-
-## 📄 License
+## License
 
 Strux Framework is open-source software licensed under the **MIT License**.
