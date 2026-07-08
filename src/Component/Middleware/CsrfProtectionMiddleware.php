@@ -15,138 +15,133 @@ use Strux\Component\Session\SessionInterface;
 
 class CsrfProtectionMiddleware implements MiddlewareInterface
 {
-    private SessionInterface $session;
-    private ?LoggerInterface $logger;
-    private array $except;
-    private string $sessionKey = '_csrf_token';
-    private string $formFieldName = '_csrf_token';
-    private string $headerName = 'X-CSRF-Token';
+	private SessionInterface $session;
+	private ?LoggerInterface $logger;
+	private array $except;
+	private string $sessionKey = '_csrf_token';
+	private string $formFieldName = '_csrf_token';
+	private string $headerName = 'X-CSRF-Token';
 
-    public function __construct(
-        SessionInterface $session,
-        ?LoggerInterface $logger = null,
-        array            $config = []
-    )
-    {
-        $this->session = $session;
-        $this->logger = $logger;
+	public function __construct(
+		SessionInterface $session,
+		?LoggerInterface $logger = null,
+		array            $config = []
+	) {
+		$this->session = $session;
+		$this->logger = $logger;
 
-        $this->except = $config['except'] ?? [];
-    }
+		$this->except = $config['except'] ?? [];
+	}
 
-    /**
-     * @inheritDoc
-     * @throws Exception
-     * @throws \Strux\Component\Exceptions\CSRFMismatchException
-     */
-    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-    {
-        if ($this->isExcluded($request)) {
-            $this->logger?->info('[CsrfProtectionMiddleware] Request URI is excluded from CSRF protection.', [
-                'uri' => $request->getUri()->getPath()
-            ]);
-            // Skip all CSRF logic and proceed to the next handler.
-            return $handler->handle($request);
-        }
+	/**
+	 * @inheritDoc
+	 * @throws Exception
+	 * @throws CSRFMismatchException
+	 */
+	public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+	{
+		if ($this->isExcluded($request)) {
+			$this->logger?->info('[CsrfProtectionMiddleware] Request URI is excluded from CSRF protection.', [
+				'uri' => $request->getUri()->getPath()
+			]);
+			return $handler->handle($request);
+		}
 
-        $this->logger->log('info', '[CsrfProtectionMiddleware] Processing CSRF protection middleware', [
-            'method' => $request->getMethod(),
-            'uri' => (string)$request->getUri()
-        ]);
-        // For "safe" methods, we ensure a token exists for subsequent forms.
-        //if (in_array(strtoupper($request->getMethod()), ['GET', 'HEAD', 'OPTIONS'])) {
-        $token = $this->session->get($this->sessionKey);
-        if (!$token) {
-            $token = $this->generateToken();
-            $this->session->set($this->sessionKey, $token);
-        }
-        // Add token to request attributes so views can easily access it.
-        $request = $request->withAttribute('csrf_token', $token);
-        $request = $request->withAttribute('csrf_field_name', $this->formFieldName);
+		$this->logger->log('info', '[CsrfProtectionMiddleware] Processing CSRF protection middleware', [
+			'method' => $request->getMethod(),
+			'uri' => (string)$request->getUri()
+		]);
 
-        $this->logger?->info('Post info.', [
-            'post' => $request
-        ]);
-        //dump($request);
-        //}
+		//if (in_array(strtoupper($request->getMethod()), ['GET', 'HEAD', 'OPTIONS'])) {
+		$token = $this->session->get($this->sessionKey);
+		if (!$token) {
+			$token = $this->generateToken();
+			$this->session->set($this->sessionKey, $token);
+		}
 
-        // For "unsafe" methods, we must validate the submitted token.
-        if (in_array(strtoupper($request->getMethod()), ['POST', 'PUT', 'PATCH', 'DELETE'])) {
-            $submittedToken = $this->getSubmittedToken($request);
-            $sessionToken = $this->session->get($this->sessionKey);
-            $this->logger?->warning('CSRF request data.', [
-                'submittedToken' => $submittedToken,
-                'sessionToken' => $sessionToken
-            ]);
+		$request = $request->withAttribute('csrf_token', $token);
+		$request = $request->withAttribute('csrf_field_name', $this->formFieldName);
 
-            if (!$sessionToken || !$submittedToken || !$this->verifyToken($submittedToken, $sessionToken)) {
-                $this->logger?->warning('CSRF token validation failed.', [
-                    'method' => $request->getMethod(),
-                    'uri' => (string)$request->getUri(),
-                    'ip_address' => $request->getServerParams()['REMOTE_ADDR'] ?? 'unknown',
-                ]);
+		$this->logger?->info('Post info.', [
+			'post' => $request
+		]);
+		// dump($request);
+		//}
 
-                throw new CSRFMismatchException(
-                    "CSRF token mismatch. Please refresh and try again.",
-                    419
-                );
-            }
-        }
+		if (in_array(strtoupper($request->getMethod()), ['POST', 'PUT', 'PATCH', 'DELETE'])) {
+			$submittedToken = $this->getSubmittedToken($request);
+			$sessionToken = $this->session->get($this->sessionKey);
+			$this->logger?->warning('CSRF request data.', [
+				'submittedToken' => $submittedToken,
+				'sessionToken' => $sessionToken
+			]);
 
-        return $handler->handle($request);
-    }
+			if (!$sessionToken || !$submittedToken || !$this->verifyToken($submittedToken, $sessionToken)) {
+				$this->logger?->warning('CSRF token validation failed.', [
+					'method' => $request->getMethod(),
+					'uri' => (string)$request->getUri(),
+					'ip_address' => $request->getServerParams()['REMOTE_ADDR'] ?? 'unknown',
+				]);
 
-    /**
-     * Determine if the request URI should be excluded from CSRF verification.
-     */
-    private function isExcluded(ServerRequestInterface $request): bool
-    {
-        $path = trim($request->getUri()->getPath(), '/');
+				throw new CSRFMismatchException(
+					"CSRF token mismatch. Please refresh and try again.",
+					419
+				);
+			}
+		}
 
-        foreach ($this->except as $exceptPath) {
-            // Trim the exclusion path and handle the wildcard
-            $exceptPath = trim($exceptPath, '/');
-            if ($exceptPath === $path) {
-                return true;
-            }
-            // Simple wildcard matching: 'api/*' should match 'api/tickets'
-            if (str_ends_with($exceptPath, '*')) {
-                $prefix = rtrim($exceptPath, '*');
-                if (str_starts_with($path, $prefix)) {
-                    return true;
-                }
-            }
-        }
+		return $handler->handle($request);
+	}
 
-        return false;
-    }
+	/**
+	 * Determine if the request URI should be excluded from CSRF verification.
+	 */
+	private function isExcluded(ServerRequestInterface $request): bool
+	{
+		$path = trim($request->getUri()->getPath(), '/');
 
-    private function getSubmittedToken(ServerRequestInterface $request): ?string
-    {
-        $parsedBody = $request->getParsedBody();
-        if (is_array($parsedBody) && !empty($parsedBody[$this->formFieldName])) {
-            return (string)$parsedBody[$this->formFieldName];
-        }
+		foreach ($this->except as $exceptPath) {
+			$exceptPath = trim($exceptPath, '/');
+			if ($exceptPath === $path) {
+				return true;
+			}
+			if (str_ends_with($exceptPath, '*')) {
+				$prefix = rtrim($exceptPath, '*');
+				if (str_starts_with($path, $prefix)) {
+					return true;
+				}
+			}
+		}
 
-        if ($request->hasHeader($this->headerName)) {
-            return $request->getHeaderLine($this->headerName);
-        }
+		return false;
+	}
 
-        return null;
-    }
+	private function getSubmittedToken(ServerRequestInterface $request): ?string
+	{
+		$parsedBody = $request->getParsedBody();
+		if (is_array($parsedBody) && !empty($parsedBody[$this->formFieldName])) {
+			return (string)$parsedBody[$this->formFieldName];
+		}
 
-    /**
-     * @throws Exception
-     */
-    private function generateToken(): string
-    {
-        $randomBytes = random_bytes(32);
-        $base64String = base64_encode($randomBytes);
-        return rtrim(strtr($base64String, '+/', '-_'), '=');
-    }
+		if ($request->hasHeader($this->headerName)) {
+			return $request->getHeaderLine($this->headerName);
+		}
 
-    private function verifyToken(string $submittedToken, string $sessionToken): bool
-    {
-        return hash_equals($sessionToken, $submittedToken);
-    }
+		return null;
+	}
+
+	/**
+	 * @throws Exception
+	 */
+	private function generateToken(): string
+	{
+		$randomBytes = random_bytes(32);
+		$base64String = base64_encode($randomBytes);
+		return rtrim(strtr($base64String, '+/', '-_'), '=');
+	}
+
+	private function verifyToken(string $submittedToken, string $sessionToken): bool
+	{
+		return hash_equals($sessionToken, $submittedToken);
+	}
 }

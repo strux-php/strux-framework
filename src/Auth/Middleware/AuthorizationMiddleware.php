@@ -23,7 +23,9 @@ use Strux\Auth\Attributes\Policy;
 use Strux\Auth\Entity\User;
 use Strux\Component\Config\Config;
 use Strux\Component\Database\ORM\Model;
-use Strux\Component\Exceptions\AuthorizationException;
+use Strux\Component\Exceptions\Http\AccessDeniedHttpException;
+use Strux\Component\Exceptions\Http\NotFoundHttpException;
+use Strux\Component\Exceptions\Http\ServerErrorHttpException;
 use Strux\Component\Routing\Attributes\RouteEntity;
 use Strux\Component\Routing\Router;
 use Strux\Support\ContainerBridge;
@@ -45,7 +47,6 @@ class AuthorizationMiddleware implements MiddlewareInterface
     /**
      * @throws JsonException
      * @throws ReflectionException
-     * @throws AuthorizationException
      */
     public function process(
         ServerRequestInterface $request,
@@ -136,9 +137,6 @@ class AuthorizationMiddleware implements MiddlewareInterface
             ->withHeader('Location', $loginUrl);
     }
 
-    /**
-     * @throws AuthorizationException
-     */
     private function checkAuthorization(
         ReflectionClass|\ReflectionMethod $reflector,
         User                             $user,
@@ -153,14 +151,14 @@ class AuthorizationMiddleware implements MiddlewareInterface
             // Check Roles
             if (!empty($authAttr->roles)) {
                 if (!$user->hasRole($authAttr->roles)) {
-                    throw new AuthorizationException("User does not have the required role.", 403);
+                    throw new AccessDeniedHttpException("User does not have the required role.");
                 }
             }
 
             // Check Permissions
             if (!empty($authAttr->permissions)) {
                 if (!$user->hasPermission($authAttr->permissions)) {
-                    throw new AuthorizationException("User does not have the required permission.", 403);
+                    throw new AccessDeniedHttpException("User does not have the required permission.");
                 }
             }
 
@@ -173,18 +171,18 @@ class AuthorizationMiddleware implements MiddlewareInterface
                 $resource = $this->resolveResource($reflector, $resourceClass, $request->getAttributes());
 
                 if ($resource === null) {
-                    throw new AuthorizationException("Resource not found for authorization.", 404);
+                    throw new NotFoundHttpException("Resource not found for authorization.");
                 }
 
                 $policyInstance = $this->container->get($policyClass);
                 $method = 'can' . ucfirst($ability);
 
                 if (!method_exists($policyInstance, $method)) {
-                    throw new AuthorizationException("Policy method '{$method}' not found.", 500);
+                    throw new ServerErrorHttpException("Policy method '{$method}' not found.");
                 }
 
                 if (!$policyInstance->{$method}($user, $resource)) {
-                    throw new AuthorizationException("User does not have the required authority.", 403);
+                    throw new AccessDeniedHttpException("User does not have the required authority.");
                 }
             }
         }

@@ -15,8 +15,8 @@ use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Strux\Auth\AuthManager;
 use Strux\Auth\AuthProxy;
-use Strux\Component\Exceptions\AuthorizationException;
 use Strux\Component\Exceptions\Container\ContainerException;
+use Strux\Component\Exceptions\Http\AccessDeniedHttpException;
 use Strux\Component\Http\Request;
 use Strux\Component\Http\Response;
 use Strux\Component\Routing\Router;
@@ -203,12 +203,11 @@ abstract class BaseController
 
 	/**
 	 * Authorize a given action against a set of arguments.
-	 * @throws AuthorizationException
 	 */
 	protected function authorize(string $ability, mixed $arguments = []): void
 	{
 		if ($this->authManager->cannot($ability, $arguments)) {
-			throw new AuthorizationException('You are not authorized to perform this action.', 403);
+			throw new AccessDeniedHttpException('You are not authorized to perform this action.');
 		}
 	}
 
