@@ -24,6 +24,7 @@ use Strux\Component\Session\SessionInterface;
 use Strux\Component\View\ViewInterface;
 use Strux\Support\ContainerBridge;
 use Strux\Support\Helpers\FlashInterface;
+use Strux\Component\Encryption\EncrypterInterface;
 use Strux\Component\Form\FormFactory;
 
 /**
@@ -43,6 +44,7 @@ abstract class BaseController
 	protected ?AuthManager $authManager = null;
 	protected AuthProxy $auth;
 	protected ?FormFactory $forms = null;
+	protected ?EncrypterInterface $encrypter = null;
 
 	/**
 	 * @throws ContainerExceptionInterface
@@ -60,7 +62,8 @@ abstract class BaseController
 		?EventDispatcherInterface $event = null,
 		?FlashInterface $flash = null,
 		?AuthManager $authManager = null,
-		?FormFactory $forms = null
+		?FormFactory $forms = null,
+		?EncrypterInterface $encrypter = null
 	) {
 		$this->container = $container ?? ContainerBridge::getContainer();
 
@@ -105,6 +108,10 @@ abstract class BaseController
 		$this->forms = $forms ?? ($this->container->has(FormFactory::class)
 			? $this->container->get(FormFactory::class)
 			: ContainerBridge::resolve(FormFactory::class)
+		);
+		$this->encrypter = $encrypter ?? ($this->container->has(EncrypterInterface::class)
+			? $this->container->get(EncrypterInterface::class)
+			: ContainerBridge::resolve(EncrypterInterface::class)
 		);
 	}
 

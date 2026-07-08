@@ -32,6 +32,7 @@ class AppRegistry extends ServiceRegistry
 		RouteRegistry::class,
 		ViewRegistry::class,
 		EventRegistry::class,
+		EncryptionRegistry::class,
 		MiddlewareRegistry::class,
 		InfrastructureRegistry::class,
 		QueueRegistry::class,
