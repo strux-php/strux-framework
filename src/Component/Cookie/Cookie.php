@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Strux\Component\Http;
+namespace Strux\Component\Cookie;
 
 use Strux\Component\Config\Config;
 

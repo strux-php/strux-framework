@@ -12,12 +12,17 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
+use Psr\SimpleCache\CacheInterface;
 use Strux\Auth\AuthManager;
 use Strux\Auth\Middleware\AuthorizationMiddleware;
 use Strux\Component\Config\Config;
+use Strux\Component\Encryption\EncrypterInterface;
+use Strux\Component\Cookie\CookieInterface;
 use Strux\Component\Middleware\ApiAuthMiddleware;
 use Strux\Component\Middleware\ConvertEmptyStringsToNull;
 use Strux\Component\Middleware\CsrfProtectionMiddleware;
+use Strux\Component\Middleware\EncryptCookiesMiddleware;
+use Strux\Component\Middleware\RateLimitingMiddleware;
 use Strux\Component\Middleware\ErrorFormatter\HtmlFormatter;
 use Strux\Component\Middleware\ErrorFormatter\JsonFormatter;
 use Strux\Component\Middleware\ErrorFormatter\PlainFormatter;
@@ -131,6 +136,25 @@ class MiddlewareRegistry extends ServiceRegistry
             ConvertEmptyStringsToNull::class,
             static fn() => new ConvertEmptyStringsToNull()
         );
+
+        $this->container->singleton(
+            RateLimitingMiddleware::class,
+            static fn(ContainerInterface $c) => new RateLimitingMiddleware(
+                cache: $c->get(CacheInterface::class),
+                logger: $c->get(LoggerInterface::class),
+                config: $c->get(Config::class)->get('rate_limiting', [])
+            )
+        );
+
+        $this->container->singleton(
+            EncryptCookiesMiddleware::class,
+            static fn(ContainerInterface $c) => new EncryptCookiesMiddleware(
+                encrypter: $c->get(EncrypterInterface::class),
+                cookie: $c->get(CookieInterface::class),
+                logger: $c->get(LoggerInterface::class),
+                config: $c->get(Config::class)->get('encrypt_cookies', [])
+            )
+        );
     }
 
     /**
@@ -149,6 +173,8 @@ class MiddlewareRegistry extends ServiceRegistry
             $app->addMiddleware($this->container->get(RequestLoggerMiddleware::class));
             $app->addMiddleware($this->container->get(ConvertEmptyStringsToNull::class));
             $app->addMiddleware($this->container->get(MethodOverrideMiddleware::class));
+            $app->addMiddleware($this->container->get(EncryptCookiesMiddleware::class));
+            $app->addMiddleware($this->container->get(RateLimitingMiddleware::class));
             $app->addMiddleware($this->container->get(CsrfProtectionMiddleware::class));
 
             if ($this->container->get(Config::class)->get('maintenance.active', false)) {

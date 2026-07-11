@@ -109,10 +109,16 @@ abstract class BaseController
 			? $this->container->get(FormFactory::class)
 			: ContainerBridge::resolve(FormFactory::class)
 		);
-		$this->encrypter = $encrypter ?? ($this->container->has(EncrypterInterface::class)
-			? $this->container->get(EncrypterInterface::class)
-			: ContainerBridge::resolve(EncrypterInterface::class)
-		);
+		$this->encrypter = $encrypter;
+		if ($this->encrypter === null) {
+			try {
+				$this->encrypter = $this->container->has(EncrypterInterface::class)
+					? $this->container->get(EncrypterInterface::class)
+					: ContainerBridge::resolve(EncrypterInterface::class);
+			} catch (\Throwable) {
+				$this->encrypter = null;
+			}
+		}
 	}
 
 	/**
